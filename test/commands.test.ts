@@ -73,7 +73,8 @@ describe('command', () => {
         const result = await command(['add', '@9:30pm', 'late deploy']);
 
         assert.equal(result.text, 'added note at 9:30pm: late deploy');
-        assert.equal(store.load(toKey()).at(-1).time, '21:30');
+        // found by its text: entries added at now sort after it once it is past 21:30
+        assert.equal(store.load(toKey()).find(({text}) => text === 'late deploy').time, '21:30');
 
         store.saveSetting('clock', '24h');
     });
