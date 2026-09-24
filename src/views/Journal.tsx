@@ -21,9 +21,19 @@ import {toClock, toHeadline} from '#/utils';
 const plural = (count: number, word: string): string => `${count} ${word}${count === 1 ? '' : 's'}`;
 
 /**
+ * What the references of these modules are called together: one module's go
+ * by its own name for them, several are references.
+ *
+ * @param modules
+ */
+const nounOf = (modules: Module[]): string =>
+    modules.length === 1 ? modules[0].noun : 'reference';
+
+/**
  * What refreshing the modules' references came to, said in the status row:
- * what was refreshed in one go, 4 references rather than 1 ticket and 3 pull
- * requests, what none of them knew, and what went wrong after it.
+ * what was asked about in one go, 4 references rather than 1 ticket and 3
+ * pull requests, which of those none of them knew, and what went wrong after
+ * it.
  *
  * @param outcomes each module's, undefined for one that was not asked
  */
@@ -31,9 +41,9 @@ const refreshed = (outcomes: [Module, Outcome | undefined][]): string => {
     const done = outcomes.flatMap(([module, outcome]) =>
         outcome?.result === 'done' ? [{module, ...outcome}] : [],
     );
-    // one module's references still go by its own name for them
-    const noun = done.length === 1 ? done[0].module.noun : 'reference';
-    const found = done.reduce((sum, outcome) => sum + outcome.found, 0);
+    const noun = nounOf(done.map(({module}) => module));
+    // what was asked, so what was not found is counted among it
+    const total = done.reduce((sum, outcome) => sum + outcome.found + outcome.missing, 0);
     const missing = done
         .filter((outcome) => outcome.missing > 0)
         .map((outcome) => `${outcome.missing} not in ${outcome.module.name}`)
@@ -48,7 +58,7 @@ const refreshed = (outcomes: [Module, Outcome | undefined][]): string => {
 
     return [
         ...(done.length > 0
-            ? [`Refreshed ${plural(found, noun)}${missing ? `, ${missing}` : ''}`]
+            ? [`Refreshed ${plural(total, noun)}${missing ? `, ${missing}` : ''}`]
             : []),
         ...failed,
     ].join('; ');
@@ -354,12 +364,11 @@ const Journal = ({journal, preferences}: ViewProps) => {
 
                 dispatch({
                     type: 'notice',
-                    text: `Asking ${asking
-                        .map(
-                            ({module, keys}) =>
-                                `${module.name} about ${plural(keys.length, module.noun)}`,
-                        )
-                        .join(' and ')}`,
+                    // counted and named as the refresh will be once it is done
+                    text: `Asking ${asking.map(({module}) => module.name).join(' and ')} about ${plural(
+                        asking.reduce((sum, {keys}) => sum + keys.length, 0),
+                        nounOf(asking.map(({module}) => module)),
+                    )}`,
                 });
                 void Promise.all(
                     asking.map(({module, keys, refresh}) =>

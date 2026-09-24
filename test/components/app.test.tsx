@@ -879,7 +879,7 @@ describe('App', () => {
             const frame = plain(lastFrame());
 
             assert.match(frame, /ACME-4217\[Download times out\]/);
-            assert.match(frame, /Refreshed 1 ticket, 1 not in Jira/);
+            assert.match(frame, /Refreshed 2 tickets, 1 not in Jira/);
             assert.equal(asked.length, 2);
             assert.ok(!asked.some((url) => url.includes('OPS-9')));
         });
@@ -1280,12 +1280,18 @@ describe('App', () => {
                 text: 'shipped ACME-4217, legacy#12, legacy#13 and legacy#14',
             });
 
-            const {stdin, lastFrame} = render(<App today={TODAY} />);
+            const {stdin, lastFrame, frames} = render(<App today={TODAY} />);
 
             await settle();
             await type(stdin, 'r');
             await until(() => plain(lastFrame()).includes('Refreshed'));
-            assert.match(plain(lastFrame()), /Refreshed 3 references, 1 not in Jira/);
+            // said before the answers come back, counted as they will be after
+            assert.ok(
+                frames.some((frame) =>
+                    /Asking Jira and GitHub about 4 references/.test(plain(frame)),
+                ),
+            );
+            assert.match(plain(lastFrame()), /Refreshed 4 references, 1 not in Jira/);
         });
 
         it('says which pull requests GitHub did not find, and what to check', async () => {
