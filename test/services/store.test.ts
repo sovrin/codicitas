@@ -327,7 +327,7 @@ describe('store', () => {
     it('records how far the schema has migrated', () => {
         const db = new DatabaseSync(path(), {readOnly: true});
 
-        assert.deepEqual({...db.prepare('PRAGMA user_version').get()}, {user_version: 9});
+        assert.deepEqual({...db.prepare('PRAGMA user_version').get()}, {user_version: 11});
         db.close();
     });
 
@@ -391,11 +391,11 @@ describe('store', () => {
         process.env.CODICITAS_DIR = root;
     });
 
-    it("moves GitHub's colours out of its titles", () => {
+    it("carries GitHub's titles over, leaving no colours behind", () => {
         const cases: [string, Record<string, unknown>][] = [
-            ['coloured', {githubTitles: true, githubColours: 'state'}],
-            ['plain', {githubTitles: true, githubColours: 'off'}],
-            ['hidden', {githubTitles: false, githubColours: 'state'}],
+            ['coloured', {githubTitles: true}],
+            ['plain', {githubTitles: true}],
+            ['hidden', {githubTitles: false}],
         ];
 
         for (const [setting, expected] of cases) {
@@ -417,6 +417,38 @@ describe('store', () => {
             db.close();
 
             assert.deepEqual(loadSettings(), expected, setting);
+        }
+
+        close();
+        process.env.CODICITAS_DIR = root;
+    });
+
+    it("turns GitHub's badges into its checks, shown or hidden", () => {
+        const cases: [string, boolean][] = [
+            ['all', true],
+            ['checks', true],
+            ['none', false],
+        ];
+
+        for (const [setting, expected] of cases) {
+            close();
+
+            const old = join(root, `badges-${setting}`);
+
+            process.env.CODICITAS_DIR = old;
+            mkdirSync(old);
+
+            const db = new DatabaseSync(join(old, 'journal.db'));
+
+            db.exec(`CREATE TABLE entries (id INTEGER PRIMARY KEY, day TEXT NOT NULL, time TEXT NOT NULL, tag TEXT NOT NULL, text TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), priority INTEGER);
+                CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+                CREATE TABLE mentions (entry_id INTEGER NOT NULL, kind TEXT NOT NULL, name TEXT NOT NULL, PRIMARY KEY (entry_id, kind, name));
+                INSERT INTO settings (key, value) VALUES ('githubBadges', '"${setting}"');
+                PRAGMA user_version = 10;`);
+            db.close();
+
+            assert.deepEqual(loadSettings(), {githubBadges: expected}, setting);
         }
 
         close();

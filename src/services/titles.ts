@@ -1,5 +1,6 @@
-import type {Answer, Badge} from '#/modules/module';
+import type {Answer, Badge, Settled} from '#/modules/module';
 import {type Range, TOPIC} from './references';
+import {around, render, TEMPLATES, type Templates} from './template';
 import {quote} from '#/utils';
 
 /**
@@ -23,19 +24,41 @@ export type Known = {
      */
     title?: string;
     /**
-     * The colour the reference and its title are drawn in, like purple for a
-     * merged pull request.
+     * What it points at is finished with: the reference is drawn faded, and
+     * struck through once dropped.
      */
-    color?: string;
+    settled?: Settled;
     /**
-     * Drawn right before the reference, at every mention.
+     * How things stand, drawn as its mark in colour-blind mode, and as the
+     * colour of the reference's underline otherwise.
      */
     badge?: Badge;
+    /**
+     * Whether the badge is drawn as its mark, at every mention.
+     */
+    marked?: boolean;
+    /**
+     * The colour the reference is underlined in, saying what a badge would.
+     */
+    underline?: string;
     /**
      * Where the reference opens.
      */
     link?: string;
+    /**
+     * How the module writes its references, where it differs from the
+     * defaults.
+     */
+    templates?: Partial<Templates>;
 };
+
+/**
+ * Whether a reference is followed by what its writer said about it, in
+ * brackets of either kind, which a title would only repeat.
+ *
+ * @param rest the text right after the reference
+ */
+const described = (rest: string): boolean => /^ ?[([]/.test(rest);
 
 export type Annotated = {
     text: string;
@@ -46,11 +69,12 @@ export type Annotated = {
 };
 
 /**
- * A text with each reference's title after its first mention: ACME-4217
- * becomes ACME-4217 (Download times out). A reference already followed by
- * brackets was described by whoever wrote it, and is left as they wrote it.
- * A badge goes before every mention, since it says how things stand rather
- * than what the reference is: ✓legacy#12.
+ * A text with each reference's title at its first mention, as its module's
+ * title template has it: ACME-4217 becomes ACME-4217[Download times out]. A
+ * reference already followed by brackets was described by whoever wrote it,
+ * and is left as they wrote it. In colour-blind mode a badge's mark goes with
+ * every mention, since it says how things stand rather than what the
+ * reference is: legacy#12 ✓[Fix login].
  *
  * @param text
  * @param known reference to what is known about it, from every module
@@ -65,8 +89,12 @@ export const annotate = (text: string, known: ReadonlyMap<string, Known>): Annot
     let result = '';
     let length = 0;
 
-    const add = (part: string, note?: {color?: string; badge?: boolean}) => {
+    const add = (part: string, note?: {color?: string; badge?: boolean; struck?: boolean}) => {
         const size = Array.from(part).length;
+
+        if (size === 0) {
+            return;
+        }
 
         if (note) {
             notes.push({start: length, end: length + size, ...note});
@@ -87,32 +115,70 @@ export const annotate = (text: string, known: ReadonlyMap<string, Known>): Annot
             continue;
         }
 
-        const titled = !!found.title && !seen.has(key) && !/^ ?\(/.test(text.slice(end));
+        const templates = {...TEMPLATES, ...found.templates};
+        const titled = !!found.title && !seen.has(key) && !described(text.slice(end));
+        const marked = !!found.badge && !!found.marked;
 
-        if (!found.badge && !titled) {
+        if (!marked && !titled) {
             continue;
         }
 
-        add(text.slice(at, match.index));
-
-        if (found.badge) {
-            add(found.badge.glyph, {
-                badge: true,
-                ...(found.badge.color ? {color: found.badge.color} : {}),
-            });
-        }
-
-        add(key);
+        // the title's template around the mark's, and the mark's around the
+        // reference: legacy#12 ✗[Fix login]
+        const [markBefore, markAfter] = marked
+            ? around(templates.mark, 'ref', {mark: found.badge.glyph})
+            : ['', ''];
+        const [titleBefore, titleAfter] = titled
+            ? around(templates.title, 'ref', {title: quote(found.title, TITLE_LIMIT)})
+            : ['', ''];
+        const badge = {badge: true, ...(found.badge?.color ? {color: found.badge.color} : {})};
+        // what was dropped is struck through whole, its title with it
+        const title = found.settled === 'dropped' ? {struck: true} : {};
 
         if (titled) {
             seen.add(key);
-            add(` (${quote(found.title, TITLE_LIMIT)})`, found.color ? {color: found.color} : {});
         }
 
+        add(text.slice(at, match.index));
+        add(titleBefore, title);
+        add(markBefore, badge);
+        add(key);
+        add(markAfter, badge);
+        add(titleAfter, title);
         at = end;
     }
 
     return {text: result + text.slice(at), notes};
+};
+
+/**
+ * A text as it is copied, for whoever reads it without Jira or GitHub open:
+ * each reference with its title at its first mention, as its module's copy
+ * template has it - [ACME-4217](https://…) Download times out, say, for
+ * Markdown.
+ *
+ * @param text
+ * @param known reference to what is known about it, from every module
+ */
+export const copy = (text: string, known: ReadonlyMap<string, Known>): string => {
+    const seen = new Set<string>();
+
+    return text.replace(TOPIC, (key: string, at: number) => {
+        const found = known.get(key);
+
+        if (!found?.title || seen.has(key) || described(text.slice(at + key.length))) {
+            return key;
+        }
+
+        seen.add(key);
+
+        return render({...TEMPLATES, ...found.templates}.copy, {
+            ref: key,
+            title: quote(found.title, TITLE_LIMIT),
+            link: found.link,
+            mark: found.badge?.glyph,
+        });
+    });
 };
 
 /**

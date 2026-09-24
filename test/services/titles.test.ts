@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
-import {annotate, clip, due, FRESH} from '#/services/titles';
+import {annotate, clip, copy, due, FRESH} from '#/services/titles';
 
 const TITLES = new Map([
     ['ACME-4217', {title: 'Download times out'}],
@@ -10,15 +10,15 @@ const TITLES = new Map([
 describe('annotate', () => {
     it('adds a title after each ticket it knows, saying where', () => {
         assert.deepEqual(annotate('shipped ACME-4217, then UTF-8', TITLES), {
-            text: 'shipped ACME-4217 (Download times out), then UTF-8',
-            notes: [{start: 17, end: 38}],
+            text: 'shipped ACME-4217[Download times out], then UTF-8',
+            notes: [{start: 17, end: 37}],
         });
     });
 
     it('titles a ticket once, however often it is mentioned', () => {
         assert.equal(
             annotate('ACME-4217 again ACME-4217', TITLES).text,
-            'ACME-4217 (Download times out) again ACME-4217',
+            'ACME-4217[Download times out] again ACME-4217',
         );
     });
 
@@ -27,24 +27,79 @@ describe('annotate', () => {
             text: 'ACME-4217 (the Safari one)',
             notes: [],
         });
+        assert.equal(
+            annotate('ACME-4217[the Safari one]', TITLES).text,
+            'ACME-4217[the Safari one]',
+        );
     });
 
     it('shortens long titles', () => {
         assert.equal(
             annotate('OPS-7', TITLES).text,
-            'OPS-7 (Rotate the staging certificates before they exp…)',
+            'OPS-7[Rotate the staging certificates before they exp…]',
         );
     });
 
     it("titles any module's references, like an issue number", () => {
         assert.equal(
             annotate('fixed #412 and #auth', new Map([['#412', {title: 'Crash on start'}]])).text,
-            'fixed #412 (Crash on start) and #auth',
+            'fixed #412[Crash on start] and #auth',
         );
     });
 
+    it("writes a title the way its module's template has it", () => {
+        const spaced = new Map([
+            ['ACME-4217', {title: 'Download times out', templates: {title: '{ref} ({title})'}}],
+        ]);
+        const before = new Map([
+            ['ACME-4217', {title: 'Download times out', templates: {title: '{title}: {ref}'}}],
+        ]);
+
+        assert.deepEqual(annotate('shipped ACME-4217', spaced), {
+            text: 'shipped ACME-4217 (Download times out)',
+            notes: [{start: 17, end: 38}],
+        });
+        // what comes before the reference is added before it
+        assert.deepEqual(annotate('shipped ACME-4217', before), {
+            text: 'shipped Download times out: ACME-4217',
+            notes: [{start: 8, end: 28}],
+        });
+    });
+
     it('counts in code points', () => {
-        assert.deepEqual(annotate('🚀 ACME-4217', TITLES).notes, [{start: 11, end: 32}]);
+        assert.deepEqual(annotate('🚀 ACME-4217', TITLES).notes, [{start: 11, end: 31}]);
+    });
+});
+
+describe('copy', () => {
+    it('writes a title into the text at its first mention, as the copy template has it', () => {
+        assert.equal(
+            copy('shipped ACME-4217, and ACME-4217 again', TITLES),
+            'shipped ACME-4217[Download times out], and ACME-4217 again',
+        );
+    });
+
+    it('makes Markdown links, or whatever else the template says', () => {
+        const linked = new Map([
+            [
+                'legacy#12',
+                {
+                    title: 'Fix login',
+                    link: 'https://github.com/sovrin/sonotas/issues/12',
+                    badge: {glyph: '✗'},
+                    templates: {copy: '[{ref}]({link}) {title} {mark}'},
+                },
+            ],
+        ]);
+
+        assert.equal(
+            copy('review legacy#12', linked),
+            'review [legacy#12](https://github.com/sovrin/sonotas/issues/12) Fix login ✗',
+        );
+    });
+
+    it('leaves a reference its writer described, and one it knows nothing about', () => {
+        assert.equal(copy('ACME-4217 (mine) and UTF-8', TITLES), 'ACME-4217 (mine) and UTF-8');
     });
 });
 
@@ -69,39 +124,61 @@ describe('clip', () => {
 
 describe('annotate with badges', () => {
     const KNOWN = new Map([
-        ['legacy#12', {title: 'Fix login', badge: {glyph: '✓', color: 'green'}}],
+        ['legacy#12', {title: 'Fix login', badge: {glyph: '✓', color: 'green'}, marked: true}],
     ]);
 
-    it('puts a badge before every mention, and the title after the first', () => {
+    it('puts a mark after every mention, and the title after the first', () => {
         assert.deepEqual(annotate('legacy#12 and again legacy#12', KNOWN), {
-            text: '✓legacy#12 (Fix login) and again ✓legacy#12',
+            text: 'legacy#12 ✓[Fix login] and again legacy#12 ✓',
             notes: [
-                {start: 0, end: 1, badge: true, color: 'green'},
-                {start: 10, end: 22},
-                {start: 33, end: 34, badge: true, color: 'green'},
+                {start: 9, end: 11, badge: true, color: 'green'},
+                {start: 11, end: 22},
+                {start: 42, end: 44, badge: true, color: 'green'},
             ],
         });
     });
 
-    it('draws a title in the colour it comes with', () => {
-        const merged = new Map([['legacy#12', {title: 'Fix login', color: 'magenta'}]]);
-
-        assert.deepEqual(annotate('legacy#12', merged).notes, [
-            {start: 9, end: 21, color: 'magenta'},
+    it('draws no mark for a badge that is not marked, like one drawn as an underline', () => {
+        const underlined = new Map([
+            [
+                'legacy#12',
+                {title: 'Fix login', badge: {glyph: '✓', color: 'green'}, underline: 'green'},
+            ],
         ]);
+
+        assert.equal(annotate('legacy#12', underlined).text, 'legacy#12[Fix login]');
+    });
+
+    it("writes the mark the way its module's template has it", () => {
+        const before = new Map([
+            ['legacy#12', {badge: {glyph: '✓'}, marked: true, templates: {mark: '{mark} {ref}'}}],
+        ]);
+
+        assert.deepEqual(annotate('legacy#12', before), {
+            text: '✓ legacy#12',
+            notes: [{start: 0, end: 2, badge: true}],
+        });
+    });
+
+    it("strikes a dropped reference's title through with it", () => {
+        const dropped = new Map([['legacy#12', {title: 'Fix login', settled: 'dropped' as const}]]);
+        const done = new Map([['legacy#12', {title: 'Fix login', settled: 'done' as const}]]);
+
+        assert.deepEqual(annotate('legacy#12', dropped).notes, [{start: 9, end: 20, struck: true}]);
+        assert.deepEqual(annotate('legacy#12', done).notes, [{start: 9, end: 20}]);
     });
 
     it('adds no title for a reference known without one', () => {
-        const bare = new Map([['legacy#12', {badge: {glyph: '✓'}}]]);
+        const bare = new Map([['legacy#12', {badge: {glyph: '✓'}, marked: true}]]);
 
         assert.deepEqual(annotate('legacy#12', bare), {
-            text: '✓legacy#12',
-            notes: [{start: 0, end: 1, badge: true}],
+            text: 'legacy#12 ✓',
+            notes: [{start: 9, end: 11, badge: true}],
         });
     });
 
     it('keeps the badge where the writer described the reference', () => {
-        assert.equal(annotate('legacy#12 (mine)', KNOWN).text, '✓legacy#12 (mine)');
+        assert.equal(annotate('legacy#12 (mine)', KNOWN).text, 'legacy#12 ✓ (mine)');
     });
 });
 

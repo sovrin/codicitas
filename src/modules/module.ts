@@ -1,4 +1,5 @@
 import type {Definition} from '#/services/definition';
+import type {Templates} from '#/services/template';
 
 /**
  * The service answered, but would not say: the token is wrong, expired or
@@ -18,6 +19,11 @@ export type Answer = {
      */
     status?: string;
 };
+
+/**
+ * How something a reference points at was finished with: done, or dropped.
+ */
+export type Settled = 'done' | 'dropped';
 
 /**
  * A mark drawn right before a reference, like ✓ for passing checks.
@@ -118,7 +124,8 @@ export type Module<S = Record<string, unknown>> = {
      */
     poll?: (settings: S) => number | undefined;
     /**
-     * The badge drawn before a reference with this status, as set up, if any.
+     * The badge a reference with this status gets, as set up, if any: the
+     * colour of its underline, or in colour-blind mode its mark after it.
      */
     badge?: (status: string, settings: S) => Badge | undefined;
     /**
@@ -127,8 +134,14 @@ export type Module<S = Record<string, unknown>> = {
      */
     titles?: (settings: S) => boolean;
     /**
-     * The colour a reference with this status and its title are drawn in, as
-     * set up; the reference as any other and its title faded when undefined.
+     * The settings holding how its references are written, by template, each
+     * with the module's own default as its fallback.
      */
-    tint?: (status: string, settings: S) => string | undefined;
+    templates?: Partial<Record<keyof Templates, keyof S & string>>;
+    /**
+     * Whether a reference with this status is finished with, and how: done,
+     * like a merged pull request, or dropped, like one closed without
+     * merging. Either steps back, so what is still open stands out.
+     */
+    settled?: (status: string) => Settled | undefined;
 };

@@ -4,6 +4,7 @@ import {type Answer, type Module, Refused, type Source} from '#/modules/module';
 import {topicsIn} from '#/services/references';
 import type {Settings} from '#/services/settings';
 import * as store from '#/services/store';
+import type {Templates} from '#/services/template';
 import {due, type Known} from '#/services/titles';
 
 /**
@@ -148,6 +149,26 @@ const ask = async (
  */
 const answers = (scope: string): Map<string, Answer | null> =>
     new Map([...store.asked(scope)].map(([key, {answer}]) => [key, answer]));
+
+/**
+ * How a module writes its references, as set: each of its templates' settings,
+ * or the module's own default where one is left empty. Undefined for a module
+ * without templates, which is written the general way.
+ *
+ * @param module
+ * @param settings
+ */
+const templatesOf = (module: Module, settings: Settings): Partial<Templates> | undefined => {
+    const entries = Object.entries(module.templates ?? {}).flatMap(([name, id]) => {
+        const typed = settings[id as keyof Settings];
+        const fallback = module.settings.find((definition) => definition.id === id)?.fallback;
+        const template = typeof typed === 'string' && typed.trim() ? typed.trim() : fallback;
+
+        return template ? [[name, template] as const] : [];
+    });
+
+    return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+};
 
 /**
  * What a setup keeps and asks about some references under, each once;
@@ -318,6 +339,7 @@ const useModule = (
     );
 
     const titled = module.titles?.(settings) ?? true;
+    const templates = useMemo(() => templatesOf(module, settings), [module, settings]);
     const {known, missing} = useMemo(() => {
         const found = new Map<string, Known>();
         const unknown: string[] = [];
@@ -326,7 +348,7 @@ const useModule = (
             const key = source.resolve ? source.resolve(reference) : reference;
             const answer = key === undefined ? undefined : stored.get(key);
             const badge = answer?.status ? module.badge?.(answer.status, settings) : undefined;
-            const color = answer?.status ? module.tint?.(answer.status, settings) : undefined;
+            const settled = answer?.status ? module.settled?.(answer.status) : undefined;
 
             if (answer === null) {
                 unknown.push(reference);
@@ -334,14 +356,18 @@ const useModule = (
                 found.set(reference, {
                     link: source.link(key),
                     ...(titled ? {title: answer.title} : {}),
-                    ...(color ? {color} : {}),
-                    ...(badge ? {badge} : {}),
+                    ...(settled ? {settled} : {}),
+                    // a mark for who cannot tell the colours apart, a
+                    // coloured underline for everyone else
+                    ...(badge ? {badge, marked: settings.colourBlind} : {}),
+                    ...(badge?.color && !settings.colourBlind ? {underline: badge.color} : {}),
+                    ...(templates ? {templates} : {}),
                 });
             }
         }
 
         return {known: found, missing: unknown};
-    }, [module, settings, titled, source, references, stored]);
+    }, [module, settings, titled, templates, source, references, stored]);
 
     return useMemo(
         () => ({module, enabled, ready: !!source, known, missing, connection, refresh}),

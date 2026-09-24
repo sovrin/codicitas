@@ -18,6 +18,14 @@ const TYPING: [string, string][] = [
     ['esc', 'cancel'],
 ];
 
+/**
+ * The heading a setting is listed under.
+ *
+ * @param definition
+ */
+const groupOf = ({missing, group}: Definition<Settings>): string =>
+    missing ? 'required' : (group ?? 'optional');
+
 export type Said = {
     text: string;
     color?: string;
@@ -69,12 +77,17 @@ const Options = ({
     const [typing, setTyping] = useState<Draft>();
     // a setting that gives names to things, open on a page of its own
     const [opened, setOpened] = useState<Definition<Settings>>();
-    const required = definitions.filter(({missing}) => missing);
-    const optional = definitions.filter(({missing}) => !missing);
+    // what cannot be done without first, then the rest by their headings, in
+    // the order they first come
+    const groups = [...new Set(['required', ...definitions.map(groupOf)])].filter((group) =>
+        definitions.some((definition) => groupOf(definition) === group),
+    );
+    const listing = groups.flatMap((group) =>
+        definitions.filter((definition) => groupOf(definition) === group),
+    );
     // headings only where there is something to tell apart
-    const split = required.length > 0 && optional.length > 0;
-    const listing = split ? [...required, ...optional] : definitions;
-    const {id, description, values, entries} = listing[selected];
+    const split = groups.length > 1;
+    const {id, description, values, entries, fallback, preview} = listing[selected];
     const width = Math.max(...listing.map(({label}) => label.length)) + 4;
 
     usePaste(
@@ -124,7 +137,8 @@ const Options = ({
                 } else if (values) {
                     adjust(id, key.leftArrow || input === 'h' ? -1 : 1);
                 } else {
-                    setTyping(draft(settings[id] as string));
+                    // a template left empty is typed over from its default
+                    setTyping(draft((settings[id] as string) || fallback || ''));
                 }
 
                 return;
@@ -164,12 +178,10 @@ const Options = ({
                     const isSelected = at === selected;
                     const value = format(settings[key] as never);
                     const isMissing = missing?.(settings[key] as never);
-                    const heading = !split
-                        ? undefined
-                        : at === 0
-                          ? 'required'
-                          : at === required.length
-                            ? 'optional'
+                    const group = groupOf(listing[at]);
+                    const heading =
+                        split && (at === 0 || groupOf(listing[at - 1]) !== group)
+                            ? group
                             : undefined;
                     const shown =
                         isSelected && typing ? (
@@ -221,6 +233,12 @@ const Options = ({
                         {'  '}
                         {description}
                     </Text>
+                    {preview && (
+                        <Text wrap="wrap">
+                            <Text dimColor>{'  '}Looks like </Text>
+                            {preview((typing ? typing.buffer : settings[id]) as never)}
+                        </Text>
+                    )}
                     {!values && !typing && (
                         <Text dimColor>
                             {'  '}

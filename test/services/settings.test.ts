@@ -82,13 +82,17 @@ describe('SETTINGS', () => {
                 'jiraSite',
                 'jiraEmail',
                 'jiraToken',
+                'jiraTitleTemplate',
+                'jiraCopyTemplate',
                 'github',
                 'githubRepositories',
                 'githubToken',
                 'githubTitles',
-                'githubColours',
                 'githubBadges',
                 'githubPoll',
+                'githubTitleTemplate',
+                'githubMarkTemplate',
+                'githubCopyTemplate',
             ],
         );
     });

@@ -42,3 +42,28 @@ export const hyperlink = (url: string, text: string): string =>
  */
 export const masked = (token: string): string =>
     `${'•'.repeat(8)}${token.length > 12 ? token.slice(-4) : ''}`;
+
+/**
+ * The terminal's own colours, by the names ink uses for them.
+ */
+const PALETTE: Record<string, number> = {
+    red: 1,
+    green: 2,
+    yellow: 3,
+    blue: 4,
+    magenta: 5,
+    cyan: 6,
+    gray: 8,
+};
+
+/**
+ * Text whose underline is drawn in a colour of its own, leaving the text as
+ * it is (SGR 58). A terminal without it draws the underline as usual. Written
+ * with colons: ink reads the form with semicolons as separate codes, and
+ * would make it blink.
+ *
+ * @param colour a name ink knows, like red
+ * @param text
+ */
+export const underlined = (colour: string, text: string): string =>
+    PALETTE[colour] === undefined ? text : `\u001b[58:5:${PALETTE[colour]}m${text}\u001b[59m`;

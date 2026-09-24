@@ -83,7 +83,7 @@ describe('toText with ticket titles', () => {
 
         assert.match(
             toText(standup(done, []), new Map([['ACME-4217', {title: 'Download times out'}]])),
-            /Done\n- shipped ACME-4217 \(Download times out\)/,
+            /Done\n- shipped ACME-4217\[Download times out\]/,
         );
     });
 });

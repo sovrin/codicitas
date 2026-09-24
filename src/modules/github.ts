@@ -1,7 +1,8 @@
 import {definer} from '#/services/definition';
 import {isNumbered} from '#/services/references';
 import {masked} from '#/utils';
-import {type Answer, type Badge, type Module, Refused} from './module';
+import {type Answer, type Badge, type Module, Refused, type Settled} from './module';
+import {template} from './templates';
 
 /**
  * A repository as GitHub names it.
@@ -285,26 +286,19 @@ const fresh = (answer: Answer | null): number =>
           }[answer?.status] ?? 24 * 60 * MINUTE);
 
 /**
- * What an open pull request's checks can be, as against how a pull request or
- * issue stands otherwise.
+ * What is finished with: a merged pull request and a closed issue are done, a
+ * pull request closed without merging was dropped.
  */
-const CHECKS = new Set(['passing', 'failing', 'running', 'unchecked', 'unreadable']);
-
-/**
- * How a pull request or issue stands, in the colours GitHub gives it.
- */
-const TINTS: Record<string, string> = {
-    passing: 'green',
-    failing: 'green',
-    running: 'green',
-    unchecked: 'green',
-    unreadable: 'green',
-    merged: 'magenta',
-    closed: 'red',
-    'open-issue': 'green',
-    'closed-issue': 'magenta',
+const SETTLED: Record<string, Settled> = {
+    merged: 'done',
+    closed: 'dropped',
+    'closed-issue': 'done',
 };
 
+/**
+ * How an open pull request's checks stand. Merged and closed ones, and issues,
+ * have none: fading and striking through say how they stand.
+ */
 const BADGES: Record<string, Badge> = {
     passing: {glyph: '✓', color: 'green'},
     failing: {glyph: '✗', color: 'red'},
@@ -312,10 +306,6 @@ const BADGES: Record<string, Badge> = {
     unchecked: {glyph: '○', color: 'gray'},
     // the token cannot read checks, which says nothing about them
     unreadable: {glyph: '?', color: 'gray'},
-    merged: {glyph: '◆', color: 'magenta'},
-    closed: {glyph: '⊘', color: 'gray'},
-    'open-issue': {glyph: '○', color: 'green'},
-    'closed-issue': {glyph: '●', color: 'magenta'},
 };
 
 export type GitHubSettings = {
@@ -333,19 +323,31 @@ export type GitHubSettings = {
      */
     githubTitles: boolean;
     /**
-     * Whether a pull request and its title are drawn in the colour of how it
-     * stands.
-     */
-    githubColours: 'state' | 'off';
-    /**
      * Which badges are drawn: all of them, those of the checks, or none.
      */
-    githubBadges: 'all' | 'checks' | 'none';
+    githubBadges: boolean;
     /**
      * Minutes between looks for answers gone stale; 0 looks only when codi
      * opens and when the journal changes.
      */
     githubPoll: number;
+    /**
+     * How a pull request is written: its title on screen, its mark in
+     * colour-blind mode, and in the copied standup; empty for the defaults.
+     */
+    githubTitleTemplate: string;
+    githubMarkTemplate: string;
+    githubCopyTemplate: string;
+};
+
+/**
+ * A pull request as the templates' previews show one.
+ */
+const EXAMPLE = {
+    ref: 'legacy#12',
+    title: 'Fix login',
+    link: 'https://github.com/sovrin/sonotas/issues/12',
+    mark: '✗',
 };
 
 const define = definer<GitHubSettings>();
@@ -368,9 +370,11 @@ const github: Module<GitHubSettings> = {
         githubRepositories: {},
         githubToken: '',
         githubTitles: true,
-        githubColours: 'state',
-        githubBadges: 'all',
+        githubBadges: true,
         githubPoll: 1,
+        githubTitleTemplate: '',
+        githubMarkTemplate: '',
+        githubCopyTemplate: '',
     },
     settings: [
         define({
@@ -428,22 +432,12 @@ const github: Module<GitHubSettings> = {
             display: true,
         }),
         define({
-            id: 'githubColours',
-            label: 'Colours',
-            description:
-                'A pull request and its title in the colour of how it stands: green while open, purple once merged and red once closed; an issue green while open and purple once closed.',
-            values: ['state', 'off'],
-            format: (colours) => (colours === 'state' ? 'by state' : 'off'),
-            display: true,
-        }),
-        define({
             id: 'githubBadges',
-            label: 'Badges',
+            label: 'Checks',
             description:
-                'The mark before a pull request: ✓ ✗ ● ○ for its checks, ◆ once merged and ⊘ once closed, and for an issue whether it is open. Checks only leaves out all but the checks.',
-            values: ['all', 'checks', 'none'],
-            format: (badges) =>
-                ({all: 'checks and state', checks: 'checks only', none: 'hidden'})[badges],
+                "How an open pull request's checks stand, in the colour of its underline: green while they pass, red while they fail, yellow while they run. In colour-blind mode as ✓ ✗ ● after it.",
+            values: [true, false],
+            format: (on) => (on ? 'shown' : 'hidden'),
             display: true,
         }),
         define({
@@ -460,7 +454,15 @@ const github: Module<GitHubSettings> = {
                       : `every ${minutes} minutes`,
             display: true,
         }),
+        template<GitHubSettings>('title', 'githubTitleTemplate', EXAMPLE),
+        template<GitHubSettings>('mark', 'githubMarkTemplate', EXAMPLE),
+        template<GitHubSettings>('copy', 'githubCopyTemplate', EXAMPLE),
     ],
+    templates: {
+        title: 'githubTitleTemplate',
+        mark: 'githubMarkTemplate',
+        copy: 'githubCopyTemplate',
+    },
     matches: isNumbered,
     connect: ({githubRepositories, githubToken}, env) => {
         const found = githubOf({repositories: githubRepositories, token: githubToken}, env);
@@ -482,12 +484,9 @@ const github: Module<GitHubSettings> = {
     },
     fresh,
     poll: ({githubPoll}) => (githubPoll > 0 ? githubPoll * MINUTE : undefined),
-    badge: (status, {githubBadges}) =>
-        githubBadges === 'all' || (githubBadges === 'checks' && CHECKS.has(status))
-            ? BADGES[status]
-            : undefined,
+    badge: (status, {githubBadges}) => (githubBadges ? BADGES[status] : undefined),
     titles: ({githubTitles}) => githubTitles,
-    tint: (status, {githubColours}) => (githubColours === 'state' ? TINTS[status] : undefined),
+    settled: (status) => SETTLED[status],
 };
 
 export default github;

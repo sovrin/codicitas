@@ -247,21 +247,20 @@ describe('the GitHub module', () => {
         assert.equal(github.poll({...github.defaults, githubPoll: 0}), undefined);
     });
 
-    it('draws how the checks stand', () => {
+    it('draws how the checks stand, and nothing for what has none', () => {
         assert.deepEqual(github.badge('passing', github.defaults), {glyph: '✓', color: 'green'});
         assert.deepEqual(github.badge('failing', github.defaults), {glyph: '✗', color: 'red'});
-        assert.deepEqual(github.badge('merged', github.defaults), {glyph: '◆', color: 'magenta'});
-        assert.equal(github.badge('nonsense', github.defaults), undefined);
+        assert.deepEqual(github.badge('running', github.defaults), {glyph: '●', color: 'yellow'});
+        assert.deepEqual(github.badge('unchecked', github.defaults), {glyph: '○', color: 'gray'});
+        assert.deepEqual(github.badge('unreadable', github.defaults), {glyph: '?', color: 'gray'});
+
+        for (const status of ['merged', 'closed', 'open-issue', 'closed-issue', 'nonsense']) {
+            assert.equal(github.badge(status, github.defaults), undefined, status);
+        }
     });
 
-    it('draws only the badges it is set to', () => {
-        const checks = {...github.defaults, githubBadges: 'checks' as const};
-        const none = {...github.defaults, githubBadges: 'none' as const};
-
-        assert.deepEqual(github.badge('running', checks), {glyph: '●', color: 'yellow'});
-        assert.equal(github.badge('merged', checks), undefined);
-        assert.equal(github.badge('open-issue', checks), undefined);
-        assert.equal(github.badge('passing', none), undefined);
+    it('draws no checks while they are hidden', () => {
+        assert.equal(github.badge('failing', {...github.defaults, githubBadges: false}), undefined);
     });
 
     it('shows titles unless they are turned off', () => {
@@ -269,14 +268,21 @@ describe('the GitHub module', () => {
         assert.equal(github.titles({...github.defaults, githubTitles: false}), false);
     });
 
-    it('colours pull requests by how they stand, unless colours are off', () => {
-        const plain = {...github.defaults, githubColours: 'off' as const};
+    it('leaves what is finished with behind: merged and closed issues done, closed dropped', () => {
+        assert.equal(github.settled('merged'), 'done');
+        assert.equal(github.settled('closed-issue'), 'done');
+        assert.equal(github.settled('closed'), 'dropped');
 
-        assert.equal(github.tint('failing', github.defaults), 'green');
-        assert.equal(github.tint('merged', github.defaults), 'magenta');
-        assert.equal(github.tint('closed', github.defaults), 'red');
-        assert.equal(github.tint('closed-issue', github.defaults), 'magenta');
-        assert.equal(github.tint('merged', plain), undefined);
+        for (const status of [
+            'passing',
+            'failing',
+            'running',
+            'unchecked',
+            'unreadable',
+            'open-issue',
+        ]) {
+            assert.equal(github.settled(status), undefined, status);
+        }
     });
 
     it('needs repositories and a token, the token counting as there in the environment', () => {
@@ -313,6 +319,13 @@ describe('the GitHub module', () => {
             .filter((definition) => definition.display)
             .map(({id}) => id);
 
-        assert.deepEqual(display, ['githubTitles', 'githubColours', 'githubBadges', 'githubPoll']);
+        assert.deepEqual(display, [
+            'githubTitles',
+            'githubBadges',
+            'githubPoll',
+            'githubTitleTemplate',
+            'githubMarkTemplate',
+            'githubCopyTemplate',
+        ]);
     });
 });

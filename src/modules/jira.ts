@@ -1,7 +1,8 @@
 import {definer} from '#/services/definition';
 import {isTicket} from '#/services/references';
 import {masked} from '#/utils';
-import {type Module, Refused} from './module';
+import {type Answer, type Module, Refused, type Settled} from './module';
+import {template} from './templates';
 
 /**
  * Where tickets are looked up. Jira Cloud signs in with an email address and
@@ -66,23 +67,66 @@ const authorization = ({email, token}: Jira): string =>
     email ? `Basic ${Buffer.from(`${email}:${token}`).toString('base64')}` : `Bearer ${token}`;
 
 /**
- * A ticket's title, or null when Jira has no such ticket - or none this
- * account may see, which Jira does not tell apart. Anything that looks like a
- * ticket is asked about, so UTF-8 simply comes back null.
+ * Resolutions that say the work was not done but given up on, as Jira and
+ * its usual workflows name them.
+ */
+const DROPPED = new Set([
+    "won't do",
+    "won't fix",
+    'wont do',
+    'wontfix',
+    'duplicate',
+    'cannot reproduce',
+    "can't reproduce",
+    'declined',
+    'rejected',
+    'invalid',
+    'obsolete',
+    'incomplete',
+    'abandoned',
+    'not a bug',
+]);
+
+type Fields = {
+    summary?: unknown;
+    status?: {statusCategory?: {key?: unknown}};
+    resolution?: {name?: unknown} | null;
+};
+
+/**
+ * How a ticket stands, in a word: open until its status is one of the done
+ * ones, and then done - or dropped, when it was resolved as not to be done.
+ *
+ * @param fields
+ */
+export const statusOf = ({status, resolution}: Fields): 'open' | 'done' | 'dropped' => {
+    if (status?.statusCategory?.key !== 'done') {
+        return 'open';
+    }
+
+    const name = typeof resolution?.name === 'string' ? resolution.name : '';
+
+    return DROPPED.has(name.trim().toLowerCase().replaceAll('’', "'")) ? 'dropped' : 'done';
+};
+
+/**
+ * A ticket's title and how it stands, or null when Jira has no such ticket -
+ * or none this account may see, which Jira does not tell apart. Anything that
+ * looks like a ticket is asked about, so UTF-8 simply comes back null.
  *
  * @param jira
  * @param key
  * @param signal
  * @param request fetch, or a stand-in for tests
  */
-export const title = async (
+export const lookup = async (
     jira: Jira,
     key: string,
     signal?: AbortSignal,
     request: typeof fetch = fetch,
-): Promise<string | null> => {
+): Promise<Answer | null> => {
     const response = await request(
-        `${jira.site}/rest/api/2/issue/${encodeURIComponent(key)}?fields=summary`,
+        `${jira.site}/rest/api/2/issue/${encodeURIComponent(key)}?fields=summary,status,resolution`,
         {
             headers: {
                 Accept: 'application/json',
@@ -106,12 +150,32 @@ export const title = async (
         throw new Error(`Jira answered ${response.status}`);
     }
 
-    const {fields} = (await response.json()) as {fields?: {summary?: unknown}};
+    const {fields} = (await response.json()) as {fields?: Fields};
 
     return typeof fields?.summary === 'string' && fields.summary.trim()
-        ? fields.summary.trim()
+        ? {title: fields.summary.trim(), status: statusOf(fields)}
         : null;
 };
+
+const DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * An open ticket is looked at again after a day, one that is done after a
+ * week. A title kept from before tickets had a status is asked for again at
+ * once, for its status.
+ *
+ * @param answer
+ */
+const fresh = (answer: Answer | null): number =>
+    answer === null
+        ? 7 * DAY
+        : answer.status === undefined
+          ? 0
+          : answer.status === 'open'
+            ? DAY
+            : 7 * DAY;
+
+const SETTLED: Record<string, Settled> = {done: 'done', dropped: 'dropped'};
 
 export type JiraSettings = {
     /**
@@ -128,6 +192,21 @@ export type JiraSettings = {
      */
     jiraEmail: string;
     jiraToken: string;
+    /**
+     * How a ticket's title is written on screen and in the copied standup;
+     * empty for the defaults.
+     */
+    jiraTitleTemplate: string;
+    jiraCopyTemplate: string;
+};
+
+/**
+ * A ticket as the templates' previews show one.
+ */
+const EXAMPLE = {
+    ref: 'ACME-4217',
+    title: 'Download times out',
+    link: 'https://acme.atlassian.net/browse/ACME-4217',
 };
 
 const define = definer<JiraSettings>();
@@ -142,7 +221,14 @@ const jira: Module<JiraSettings> = {
     description: 'Tickets like PROJ-123 show their title after them, and link to Jira.',
     refused: 'Check the email and token.',
     unknown: 'Check the tickets exist, and that the account may see their projects.',
-    defaults: {jira: false, jiraSite: '', jiraEmail: '', jiraToken: ''},
+    defaults: {
+        jira: false,
+        jiraSite: '',
+        jiraEmail: '',
+        jiraToken: '',
+        jiraTitleTemplate: '',
+        jiraCopyTemplate: '',
+    },
     settings: [
         define({
             id: 'jiraSite',
@@ -173,19 +259,21 @@ const jira: Module<JiraSettings> = {
             missing: (token) => !token.trim() && !process.env.JIRA_API_TOKEN?.trim(),
             secret: true,
         }),
+        template<JiraSettings>('title', 'jiraTitleTemplate', EXAMPLE),
+        template<JiraSettings>('copy', 'jiraCopyTemplate', EXAMPLE),
     ],
+    templates: {title: 'jiraTitleTemplate', copy: 'jiraCopyTemplate'},
     matches: isTicket,
+    fresh,
+    // done tickets fade, dropped ones are struck through as well
+    settled: (status) => SETTLED[status],
     connect: ({jiraSite, jiraEmail, jiraToken}, env) => {
         const found = jiraOf({site: jiraSite, email: jiraEmail, token: jiraToken}, env);
 
         return (
             found && {
                 scope: found.site,
-                lookup: async (key, signal) => {
-                    const summary = await title(found, key, signal);
-
-                    return summary === null ? null : {title: summary};
-                },
+                lookup: (key, signal) => lookup(found, key, signal),
                 link: (key) => `${found.site}/browse/${key}`,
             }
         );

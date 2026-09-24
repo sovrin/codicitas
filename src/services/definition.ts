@@ -31,6 +31,21 @@ export type Definition<S, K extends keyof S = keyof S> = {
      */
     display?: boolean;
     /**
+     * What an empty value stands for, like a template's default: shown in
+     * its place, and there to be typed over.
+     */
+    fallback?: string;
+    /**
+     * What a value looks like in use, shown while the setting is selected
+     * and while it is typed.
+     */
+    preview?(value: S[K]): string;
+    /**
+     * The heading it is listed under, like templates; optional when missing.
+     * What cannot be done without is listed under required regardless.
+     */
+    group?: string;
+    /**
      * For a setting that gives names to things, like short names to
      * repositories: it is kept as an object of name to value, and changed a
      * page further in, one entry at a time.

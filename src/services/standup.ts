@@ -1,6 +1,6 @@
 import {markOf, type Tag} from './journal';
 import type {Found} from './store';
-import {annotate, type Known} from './titles';
+import {copy, type Known} from './titles';
 
 export type Section = {
     title: string;
@@ -28,7 +28,7 @@ export const standup = (recent: Found[], open: Found[]): Section[] => [
  * Plain text for pasting into a chat. Lines after an entry's first are
  * indented under it, so a multi line entry stays one bullet, and an urgent
  * todo keeps its !! or !. References take their titles along, for whoever
- * reads it without Jira open.
+ * reads it without Jira open, as each module's copy template writes them.
  *
  * @param sections
  * @param titles
@@ -45,7 +45,7 @@ export const toText = (
                     ? ['- nothing']
                     : entries.map(
                           (entry) =>
-                              `- ${markOf(entry)}${annotate(entry.text, titles).text.split('\n').join('\n  ')}`,
+                              `- ${markOf(entry)}${copy(entry.text, titles).split('\n').join('\n  ')}`,
                       )),
             ].join('\n'),
         )

@@ -196,8 +196,8 @@ describe('layout with ticket titles', () => {
         assert.deepEqual(
             rows.map((row) => row.kind === 'entry' && [row.text, row.notes]),
             [
-                ['shipped ACME-4217 (Download ', [{start: 17, end: 28}]],
-                ['times out) today', [{start: 0, end: 10}]],
+                ['shipped ACME-4217[Download ', [{start: 17, end: 27}]],
+                ['times out] today', [{start: 0, end: 10}]],
             ],
         );
     });

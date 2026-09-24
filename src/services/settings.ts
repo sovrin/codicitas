@@ -33,6 +33,12 @@ type Core = {
      * confirming a delete - is shown either way.
      */
     hints: boolean;
+    /**
+     * Whether what colour says is said with marks as well, like a module's
+     * badge drawn as ✗ after a reference rather than as the colour of its
+     * underline.
+     */
+    colourBlind: boolean;
 };
 
 /**
@@ -48,6 +54,7 @@ export const DEFAULTS: Settings = {
     tag: 'note',
     indent: 2,
     hints: true,
+    colourBlind: false,
     ...defaults(),
 };
 
@@ -111,6 +118,14 @@ export const GENERAL: Definition<Settings>[] = [
             'The keys along the bottom. Hide them once you know them; ? still lists every key.',
         values: [true, false],
         format: (on) => (on ? 'shown' : 'hidden'),
+    }),
+    define({
+        id: 'colourBlind',
+        label: 'Colour-blind mode',
+        description:
+            "Says with marks what is otherwise only a colour: a pull request's checks as ✓ ✗ ● after it, rather than the colour of its underline.",
+        values: [false, true],
+        format: (on) => (on ? 'on' : 'off'),
     }),
 ];
 

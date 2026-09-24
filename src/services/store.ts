@@ -99,6 +99,11 @@ const MIGRATIONS: (string | ((db: DatabaseSync) => void))[] = [
         FROM settings WHERE key = 'githubTitles';
     UPDATE settings SET value = CASE value WHEN '"hidden"' THEN 'false' ELSE 'true' END
         WHERE key = 'githubTitles';`,
+    // only badges have a colour now, so there are no colours to set
+    "DELETE FROM settings WHERE key = 'githubColours';",
+    // GitHub's badges are only its checks now, shown or not
+    `UPDATE settings SET value = CASE value WHEN '"none"' THEN 'false' ELSE 'true' END
+        WHERE key = 'githubBadges';`,
 ];
 
 /**

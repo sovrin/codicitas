@@ -59,6 +59,10 @@ export type Part = {
      * drawn in its colour at full strength rather than faded.
      */
     isBadge?: boolean;
+    /**
+     * Struck through, like the title of something dropped.
+     */
+    isStruck?: boolean;
 };
 
 /**
@@ -70,6 +74,7 @@ export type Range = {
     end: number;
     color?: string;
     badge?: boolean;
+    struck?: boolean;
 };
 
 /**
@@ -93,7 +98,9 @@ export const references = (text: string, notes: Range[] = []): Part[] => {
         const parts: Part[] = [];
         let at = 0;
 
-        for (const {start, end, color, badge} of notes.toSorted((a, b) => a.start - b.start)) {
+        for (const {start, end, color, badge, struck} of notes.toSorted(
+            (a, b) => a.start - b.start,
+        )) {
             if (start > at) {
                 parts.push(...references(list.slice(at, start).join('')));
             }
@@ -105,6 +112,7 @@ export const references = (text: string, notes: Range[] = []): Part[] => {
                     isNote: true,
                     ...(color ? {color} : {}),
                     ...(badge ? {isBadge: true} : {}),
+                    ...(struck ? {isStruck: true} : {}),
                 });
                 at = end;
             }

@@ -11,7 +11,8 @@ import * as store from '#/services/store';
 
 const TODAY = '2026-09-24';
 
-const ANSI = new RegExp(String.fromCharCode(27) + '\\[[0-9;?]*[a-zA-Z]', 'g');
+// colons too, as in the colour of an underline: 58:5:1
+const ANSI = new RegExp(String.fromCharCode(27) + '\\[[0-9;:?]*[a-zA-Z]', 'g');
 
 /**
  * Links, OSC 8: the address, then the text shown, then an empty link.
@@ -36,11 +37,11 @@ const repositories = () => store.loadSettings().githubRepositories;
 
 const ESCAPE = String.fromCharCode(27);
 
-const GREEN = '32';
+const RED = '31';
 
 /**
  * The foreground colour in effect where a text starts in a frame drawn with
- * colours on, as its code: 32 for green; undefined for the default.
+ * colours on, as its code: 31 for red; undefined for the default.
  *
  * @param frame
  * @param text
@@ -55,6 +56,39 @@ const colourAt = (frame: string, text: string): string | undefined => {
 
     return colour === '39' ? undefined : colour;
 };
+
+const pull = (state: string, checks?: string) => ({
+    __typename: 'PullRequest',
+    title: {OPEN: 'Fix login', MERGED: 'Drop cookies', CLOSED: 'Try another way'}[state],
+    state,
+    commits: {nodes: [{commit: {statusCheckRollup: checks ? {state: checks} : null}}]},
+});
+// 12 is open with failing checks, 13 merged, 14 closed without merging
+const PULLS: Record<number, unknown> = {
+    12: pull('OPEN', 'FAILURE'),
+    13: pull('MERGED'),
+    14: pull('CLOSED'),
+};
+
+const DIM = ['2', '22'];
+
+const STRUCK = ['9', '29'];
+
+/**
+ * Whether a style is on where a text starts in a frame drawn with colours
+ * on, by the codes that turn it on and off.
+ *
+ * @param frame
+ * @param text
+ * @param codes
+ */
+const styleAt = (frame: string, text: string, [on, off]: string[]): boolean =>
+    frame
+        .slice(0, frame.indexOf(text))
+        .split(`${ESCAPE}[`)
+        .slice(1)
+        .flatMap((code) => code.slice(0, code.indexOf('m')).split(';'))
+        .findLast((code) => code === on || code === off) === on;
 
 /**
  * Waits until the check holds, for what arrives after a round trip or two -
@@ -761,10 +795,10 @@ describe('App', () => {
 
             const first = render(<App today={TODAY} />);
 
-            await settle();
+            await until(() => plain(first.lastFrame()).includes('[Download times out]'));
             assert.match(
                 plain(first.lastFrame()),
-                /✓ shipped ACME-4217 \(Download times out\) and UTF-8/,
+                /✓ shipped ACME-4217\[Download times out\] and UTF-8/,
             );
             assert.deepEqual(asked.map((url) => url.replace(/\?.*/, '')).toSorted(), [
                 'https://acme.atlassian.net/rest/api/2/issue/ACME-4217',
@@ -785,7 +819,7 @@ describe('App', () => {
             // from the cache, found or not
             const second = render(<App today={TODAY} />);
 
-            assert.match(plain(second.lastFrame()), /ACME-4217 \(Download times out\)/);
+            assert.match(plain(second.lastFrame()), /ACME-4217\[Download times out\]/);
             await settle();
             assert.equal(asked.length, 2);
             second.unmount();
@@ -795,16 +829,16 @@ describe('App', () => {
             store.saveSetting('jira', true);
             store.saveSetting('jiraSite', 'acme.atlassian.net');
             store.saveSetting('jiraToken', 'secret');
-            store.saveTitle('https://acme.atlassian.net', 'ACME-4217', 'An old title');
+            store.saveTitle('https://acme.atlassian.net', 'ACME-4217', 'An old title', 'open');
             store.saveTitle('https://acme.atlassian.net', 'UTF-8', null);
-            store.saveTitle('https://acme.atlassian.net', 'OPS-9', 'Elsewhere');
+            store.saveTitle('https://acme.atlassian.net', 'OPS-9', 'Elsewhere', 'open');
             store.add(TODAY, {time: '09:00', tag: 'done', text: 'shipped ACME-4217 and UTF-8'});
             store.add('2026-09-20', {time: '09:00', tag: 'done', text: 'OPS-9 on another day'});
 
             const {stdin, lastFrame} = render(<App today={TODAY} />);
 
             await settle();
-            assert.match(plain(lastFrame()), /ACME-4217 \(An old title\)/);
+            assert.match(plain(lastFrame()), /ACME-4217\[An old title\]/);
             // fresh in the cache, so nothing is asked in the background
             assert.deepEqual(asked, []);
 
@@ -813,7 +847,7 @@ describe('App', () => {
 
             const frame = plain(lastFrame());
 
-            assert.match(frame, /ACME-4217 \(Download times out\)/);
+            assert.match(frame, /ACME-4217\[Download times out\]/);
             assert.match(frame, /Refreshed 1 ticket, 1 not in Jira/);
             assert.equal(asked.length, 2);
             assert.ok(!asked.some((url) => url.includes('OPS-9')));
@@ -914,8 +948,8 @@ describe('App', () => {
             assert.deepEqual(asked, []);
 
             await type(stdin, '\u001b', '\u001b');
-            await until(() => plain(lastFrame()).includes('(Download times out)'));
-            assert.match(plain(lastFrame()), /shipped ACME-4217 \(Download times out\)/);
+            await until(() => plain(lastFrame()).includes('[Download times out]'));
+            assert.match(plain(lastFrame()), /shipped ACME-4217\[Download times out\]/);
 
             await type(stdin, ',', '\t');
             assert.match(plain(lastFrame()), /▌ Jira\s+‹ on ›\s+working/);
@@ -994,23 +1028,7 @@ describe('App', () => {
                     JSON.stringify({
                         data: {
                             repository: {
-                                issueOrPullRequest:
-                                    variables.number === 12
-                                        ? {
-                                              __typename: 'PullRequest',
-                                              title: 'Fix login',
-                                              state: 'OPEN',
-                                              commits: {
-                                                  nodes: [
-                                                      {
-                                                          commit: {
-                                                              statusCheckRollup: {state: 'FAILURE'},
-                                                          },
-                                                      },
-                                                  ],
-                                              },
-                                          }
-                                        : null,
+                                issueOrPullRequest: PULLS[variables.number] ?? null,
                             },
                         },
                     }),
@@ -1065,7 +1083,7 @@ describe('App', () => {
             assert.match(plain(lastFrame()), /▌ Repositories\s+‹ legacy → sovrin\/sonotas ›/);
         });
 
-        it("shows how a pull request's checks stand before it, its title after it", async () => {
+        it("shows a pull request's checks in the colour of its underline, its title after it", async () => {
             store.saveSetting('github', true);
             store.saveSetting('githubRepositories', {legacy: 'sovrin/sonotas'});
             store.saveSetting('githubToken', 'secret');
@@ -1077,11 +1095,14 @@ describe('App', () => {
 
             const {lastFrame} = render(<App today={TODAY} />);
 
-            await settle();
+            await until(() => plain(lastFrame()).includes('[Fix login]'));
             assert.match(
                 plain(lastFrame()),
-                /review ✗legacy#12 \(Fix login\) and legacy#99, not other#3/,
+                /review legacy#12\[Fix login\] and legacy#99, not other#3/,
             );
+            // failing, so its underline is red; no mark, that is for colour-blind mode
+            assert.ok(lastFrame().includes('\u001b[58:5:1mlegacy#12'));
+            assert.ok(!lastFrame().includes('\u001b[58:5:1mlegacy#99'));
             // a short name without a repository is not asked about
             assert.deepEqual(asked, [
                 {owner: 'sovrin', name: 'sonotas', number: 12},
@@ -1092,10 +1113,52 @@ describe('App', () => {
 
             assert.ok(
                 frame.includes(
-                    '\u001b]8;;https://github.com/sovrin/sonotas/issues/12\u0007legacy#12\u001b]8;;\u0007',
+                    '\u001b]8;;https://github.com/sovrin/sonotas/issues/12\u0007\u001b[58:5:1mlegacy#12\u001b]8;;\u0007',
                 ),
             );
             assert.ok(!frame.includes('issues/99'));
+        });
+
+        it("writes a pull request's title the way its template is typed", async () => {
+            store.saveSetting('github', true);
+            store.saveSetting('githubRepositories', {legacy: 'sovrin/sonotas'});
+            store.saveSetting('githubToken', 'secret');
+            store.add(TODAY, {time: '09:00', tag: 'todo', text: 'review legacy#12'});
+
+            const {stdin, lastFrame} = render(<App today={TODAY} />);
+
+            await until(() => plain(lastFrame()).includes('[Fix login]'));
+
+            // past what it needs and what it shows, to how it writes things
+            await type(stdin, ',', '\t', 'j', '\r', 'j', 'j', 'j', 'j', 'j');
+            assert.match(
+                plain(lastFrame()),
+                /T E M P L A T E S\n\s+▌ Title\s+‹ \{ref\}\[\{title\}\] ›/,
+            );
+            assert.match(plain(lastFrame()), /Looks like legacy#12\[Fix login\]/);
+
+            // typed from its default, and shown as it is typed
+            await type(stdin, '\r', '\u0015', '{ref} ({title})');
+            assert.match(plain(lastFrame()), /Looks like legacy#12 \(Fix login\)/);
+
+            await type(stdin, '\r', '\u001b', '\u001b', '\u001b');
+            assert.equal(store.loadSettings().githubTitleTemplate, '{ref} ({title})');
+            assert.match(plain(lastFrame()), /review legacy#12 \(Fix login\)/);
+            assert.equal(asked.length, 1);
+        });
+
+        it('marks the checks after a pull request in colour-blind mode', async () => {
+            store.saveSetting('colourBlind', true);
+            store.saveSetting('github', true);
+            store.saveSetting('githubRepositories', {legacy: 'sovrin/sonotas'});
+            store.saveSetting('githubToken', 'secret');
+            store.add(TODAY, {time: '09:00', tag: 'todo', text: 'review legacy#12 and legacy#12'});
+
+            const {lastFrame} = render(<App today={TODAY} />);
+
+            await until(() => plain(lastFrame()).includes('[Fix login]'));
+            assert.match(plain(lastFrame()), /review legacy#12 ✗\[Fix login\] and legacy#12 ✗/);
+            assert.ok(!lastFrame().includes('\u001b[58:5:'));
         });
 
         it('shows as much as it is set to, without asking again', async () => {
@@ -1106,16 +1169,17 @@ describe('App', () => {
 
             const {stdin, lastFrame} = render(<App today={TODAY} />);
 
-            await settle();
-            assert.match(plain(lastFrame()), /review ✗legacy#12 \(Fix login\)/);
+            await until(() => plain(lastFrame()).includes('[Fix login]'));
+            assert.match(plain(lastFrame()), /review legacy#12\[Fix login\]/);
+            assert.ok(lastFrame().includes('\u001b[58:5:1mlegacy#12'));
             assert.equal(asked.length, 1);
 
             // titles, then badges, turned off on the GitHub page
             await type(stdin, ',', '\t', 'j', '\r', 'j', 'j', 'h');
             assert.match(plain(lastFrame()), /▌ Titles\s+‹ hidden ›/);
 
-            await type(stdin, 'j', 'j', 'h');
-            assert.match(plain(lastFrame()), /▌ Badges\s+‹ hidden ›/);
+            await type(stdin, 'j', 'h');
+            assert.match(plain(lastFrame()), /▌ Checks\s+‹ hidden ›/);
 
             await type(stdin, '\u001b', '\u001b');
             await settle();
@@ -1123,28 +1187,44 @@ describe('App', () => {
             assert.equal(asked.length, 1);
         });
 
-        it('draws a pull request and its title in the colour of how it stands', async () => {
+        it('colours only the badge, and leaves what is finished with behind', async () => {
             const level = chalk.level;
 
             chalk.level = 1;
 
             try {
+                // the badge as a mark, to see what colour it is
+                store.saveSetting('colourBlind', true);
                 store.saveSetting('github', true);
                 store.saveSetting('githubRepositories', {legacy: 'sovrin/sonotas'});
                 store.saveSetting('githubToken', 'secret');
-                store.add(TODAY, {time: '09:00', tag: 'todo', text: 'review legacy#12'});
+                store.add(TODAY, {
+                    time: '09:00',
+                    tag: 'note',
+                    text: 'review legacy#12, after legacy#13 and legacy#14',
+                });
 
-                const {stdin, lastFrame} = render(<App today={TODAY} />);
+                const {lastFrame} = render(<App today={TODAY} />);
 
-                await settle();
-                // open, so green: the reference and its title
-                assert.equal(colourAt(lastFrame(), 'legacy#12'), GREEN);
-                assert.equal(colourAt(lastFrame(), ' (Fix login)'), GREEN);
+                await until(() => plain(lastFrame()).includes('[Try another way]'));
 
-                // colours off, the reference is drawn like any other
-                await type(stdin, ',', '\t', 'j', '\r', 'j', 'j', 'j', 'h', '\u001b', '\u001b');
-                assert.equal(store.loadSettings().githubColours, 'off');
-                assert.equal(colourAt(lastFrame(), 'legacy#12'), undefined);
+                const frame = lastFrame();
+
+                // the failing checks are red, the pull request and its title are not
+                assert.equal(colourAt(frame, '✗'), RED);
+                assert.equal(colourAt(frame, 'legacy#12'), undefined);
+                assert.equal(colourAt(frame, '[Fix login]'), undefined);
+                assert.equal(styleAt(frame, '[Fix login]', DIM), true);
+                assert.equal(styleAt(frame, 'legacy#12', DIM), false);
+
+                // merged is done, and faded; closed was dropped, and struck through
+                assert.equal(styleAt(frame, 'legacy#13', DIM), true);
+                assert.equal(styleAt(frame, 'legacy#13', STRUCK), false);
+                assert.equal(styleAt(frame, 'legacy#14', DIM), true);
+                assert.equal(styleAt(frame, 'legacy#14', STRUCK), true);
+                // its title with it; a merged one's is only faded
+                assert.equal(styleAt(frame, '[Try another way]', STRUCK), true);
+                assert.equal(styleAt(frame, '[Drop cookies]', STRUCK), false);
             } finally {
                 chalk.level = level;
             }
