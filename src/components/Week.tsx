@@ -3,7 +3,7 @@ import {Text} from 'ink';
 import type {WeekStart} from '#/services/settings';
 import {fromKey, weekOf} from '#/utils';
 
-const NAMES = ['su', 'mo', 'tu', 'we', 'th', 'fr', 'sa'];
+const NAMES = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
 type Props = {
     day: string;
@@ -31,8 +31,8 @@ export const WeekNames = ({day, start}: Props) => (
 
 /**
  * Under each name, whether anything was written that day: ● yes, · no, ◉ the
- * day on screen. As wide as the names, so the two lines stay aligned when
- * right aligned.
+ * day on screen. Each mark sits under the middle letter of its name, and the
+ * line is as wide as the names, so the two stay aligned when right aligned.
  *
  * @param day
  * @param days
@@ -43,8 +43,8 @@ export const WeekMarks = ({day, days, start}: Props) => (
     <Text>
         {weekOf(day, start).map((key, at) => (
             <Text key={key} bold={key === day} dimColor={key !== day}>
-                {key === day ? '◉' : days.includes(key) ? '●' : '·'}
-                {at < 6 ? '  ' : ' '}
+                {at > 0 && ' '}
+                {` ${key === day ? '◉' : days.includes(key) ? '●' : '·'} `}
             </Text>
         ))}
     </Text>

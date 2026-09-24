@@ -133,8 +133,15 @@ describe('App', () => {
         const {lastFrame, unmount} = render(<App today={TODAY} />);
         const frame = plain(lastFrame());
 
-        assert.match(frame, /Thursday 24 September\s+mo tu we th fr sa su/);
-        assert.match(frame, /nothing written yet\s+·  ·  ·  ◉  ·  ·  ·/);
+        assert.match(frame, /Thursday 24 September\s+mon tue wed thu fri sat sun/);
+        assert.match(frame, /nothing written yet\s+·   ·   ·   ◉   ·   ·   ·/);
+
+        const [names, marks] = frame.split('\n').filter((line) => /mon|◉/.test(line));
+        const middles = [...names.matchAll(/[a-z]{3}(?= |$)/g)]
+            .slice(-7)
+            .map((name) => name.index + 1);
+        const dots = [...marks.matchAll(/[·●◉]/g)].map((mark) => mark.index);
+        assert.deepEqual(dots, middles);
         assert.match(frame, /\d\d:\d\d ● now\s+i to write the first entry of the day/);
         unmount();
     });
@@ -481,13 +488,13 @@ describe('App', () => {
         frame = plain(first.lastFrame());
 
         assert.doesNotMatch(frame, /┆/);
-        assert.match(frame, /su mo tu we th fr sa/);
+        assert.match(frame, /sun mon tue wed thu fri sat/);
         first.unmount();
         store.close();
 
         const second = render(<App today={TODAY} />);
 
-        assert.match(plain(second.lastFrame()), /su mo tu we th fr sa/);
+        assert.match(plain(second.lastFrame()), /sun mon tue wed thu fri sat/);
         assert.doesNotMatch(plain(second.lastFrame()), /┆/);
         second.unmount();
     });
