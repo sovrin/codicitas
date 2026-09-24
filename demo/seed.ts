@@ -1,7 +1,7 @@
 /**
  * Fills a journal with a few believable days of work, for recording the demo.
  * Dated from today back, whenever it runs, and written the way codi add
- * writes: /tags, !priorities and all. Jira and GitHub are set up against the
+ * writes: /tags, !priorities, >due dates and all. Jira and GitHub are set up against the
  * stand-ins in mock.mjs.
  */
 import {prepare} from '#/services/journal';
@@ -56,8 +56,10 @@ write(yesterday, '16:20', '/note SHOP-305 was SHOP-298 all along');
 write(yesterday, '17:05', '/todo !l tidy the #payments dashboards');
 
 write(toKey(), ago(390), '/done idempotency keys are in shop#482');
-write(toKey(), ago(330), '/meet standup');
-write(toKey(), ago(250), '/todo !h review api#1502 with @mira');
+// close enough to the first entry to leave out the break, making room for
+// the todo the demo writes
+write(toKey(), ago(350), '/meet standup');
+write(toKey(), ago(250), '/todo !h >tod review api#1502 with @mira');
 write(toKey(), ago(140), '/done wrote the runbook for #payments retries');
 write(toKey(), ago(55), '/todo shop#490 needs screenshots');
 

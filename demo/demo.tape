@@ -58,6 +58,17 @@ Sleep 3.5s
 
 Hide
 Ctrl+B
+Type@1ms `:set -g @caption "  #[bg=#89b4fa,fg=#1e1e2e,bold] >fri #[default]  a todo due by Friday  ·  yellow on the day it's due, red once it's overdue  "`
+Enter
+Sleep 150ms
+Show
+Sleep 1.5s
+Type "i" Sleep 600ms
+Type "/todo >fri send @jonas the #payments numbers" Sleep 900ms Enter
+Sleep 3.5s
+
+Hide
+Ctrl+B
 Type@1ms `:set -g @caption "  #[bg=#89b4fa,fg=#1e1e2e,bold] h #[default]  the day before  ·  #[bg=#89b4fa,fg=#1e1e2e,bold] t #[default]  back to today  "`
 Enter
 Sleep 150ms
@@ -78,7 +89,7 @@ Escape Sleep 800ms
 
 Hide
 Ctrl+B
-Type@1ms `:set -g @caption "  #[bg=#89b4fa,fg=#1e1e2e,bold] o #[default]  every open todo, from any day, the most urgent first  "`
+Type@1ms `:set -g @caption "  #[bg=#89b4fa,fg=#1e1e2e,bold] o #[default]  every open todo, from any day: what's due first, then the most urgent  "`
 Enter
 Sleep 150ms
 Show
