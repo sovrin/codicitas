@@ -79,6 +79,16 @@ describe('command', () => {
         store.saveSetting('clock', '24h');
     });
 
+    it('makes a todo due with >day, and says when', async () => {
+        const result = await command(['add', '/todo', '>tom', '@8:00', 'call the bank']);
+
+        assert.equal(result.text, 'added todo at 08:00, due tomorrow: call the bank');
+        assert.equal(
+            store.load(toKey()).find(({text}) => text === 'call the bank').due > toKey(),
+            true,
+        );
+    });
+
     it('refuses to add nothing', async () => {
         assert.equal((await command(['add'])).code, 2);
         assert.equal((await command(['add', '/done'])).code, 2);

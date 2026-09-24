@@ -147,7 +147,7 @@ const useJournal = (today: string = toKey()) => {
                 return;
             }
 
-            const prepared = prepare((draft ?? mode.draft).buffer, mode.tag);
+            const prepared = prepare((draft ?? mode.draft).buffer, mode.tag, today);
 
             if (!prepared) {
                 dispatch({type: 'close'});
@@ -168,7 +168,7 @@ const useJournal = (today: string = toKey()) => {
 
             record({kind: 'add', day, id}, id);
         },
-        [mode, entries, day, record],
+        [mode, entries, day, today, record],
     );
 
     /**
@@ -214,6 +214,49 @@ const useJournal = (today: string = toKey()) => {
         },
         [day, record],
     );
+
+    /**
+     * Starts choosing a todo's due date, on screen or on another day.
+     */
+    const plan = useCallback(
+        (entry: Entry, on: string = day) => {
+            if (entry.tag !== 'todo') {
+                dispatch({type: 'notice', text: 'Only todos have a due date'});
+
+                return;
+            }
+
+            dispatch({type: 'due.open', entry, day: on});
+        },
+        [day],
+    );
+
+    /**
+     * Gives the todo being planned the day chosen for it, or takes its date
+     * away.
+     */
+    const schedule = useCallback(() => {
+        if (mode.kind !== 'due') {
+            return;
+        }
+
+        const {entry, day: on, target} = mode;
+
+        if (target === entry.due) {
+            dispatch({type: 'close'});
+
+            return;
+        }
+
+        store.update(entry.id, {tag: entry.tag, text: entry.text, due: target ?? null});
+        record({kind: 'edit', day: on, before: entry}, entry.id);
+        dispatch({
+            type: 'notice',
+            text: target
+                ? `"${firstLine(entry.text)}" is due ${toHeadline(target, today)}`
+                : `"${firstLine(entry.text)}" has no due date now`,
+        });
+    }, [mode, today, record]);
 
     const toggle = useCallback(() => {
         if (entries[index]) {
@@ -287,6 +330,7 @@ const useJournal = (today: string = toKey()) => {
                     store.update(change.before.id, {
                         ...change.before,
                         priority: change.before.priority ?? null,
+                        due: change.before.due ?? null,
                     });
 
                     return [
@@ -331,6 +375,8 @@ const useJournal = (today: string = toKey()) => {
         tick,
         toggle,
         prioritize,
+        plan,
+        schedule,
         remove,
         move,
         undo,

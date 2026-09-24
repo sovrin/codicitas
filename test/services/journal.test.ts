@@ -12,6 +12,7 @@ import {
     prepare,
     rank,
     reducer,
+    splitDue,
     splitPrefixes,
     splitPriority,
     splitTime,
@@ -40,6 +41,7 @@ const opened = reducer(initial('2026-09-24'), {
 
 const tag = (state: State) => state.mode.kind === 'compose' && state.mode.tag;
 const target = (state: State) => state.mode.kind === 'move' && state.mode.target;
+const due = (state: State) => state.mode.kind === 'due' && state.mode.target;
 
 describe('reducer', () => {
     it('selects the newest entry when a day opens', () => {
@@ -405,5 +407,63 @@ describe('priority', () => {
         assert.equal(markOf({tag: 'todo'}), '');
         assert.equal(markOf({tag: 'todo', priority: 1}), '');
         assert.equal(markOf({tag: 'done', priority: 4}), '');
+    });
+});
+
+describe('due dates', () => {
+    // a Thursday
+    const today = '2026-09-24';
+
+    it('takes a >day at the start, counted from today', () => {
+        assert.deepEqual(splitDue('>fri send the report', today), {
+            due: '2026-09-25',
+            text: 'send the report',
+        });
+        assert.deepEqual(splitDue('>2oct', today), {due: '2026-10-02', text: ''});
+    });
+
+    it('leaves what names no day as text, a quote among them', () => {
+        assert.deepEqual(splitDue('> quoted', today), {text: '> quoted'});
+        assert.deepEqual(splitDue('>=5 retries', today), {text: '>=5 retries'});
+        assert.deepEqual(splitDue('ship >fri', today), {text: 'ship >fri'});
+    });
+
+    it('comes in any order with the other prefixes', () => {
+        assert.deepEqual(splitPrefixes('>fri !h /todo @10:30 review', today), {
+            tag: 'todo',
+            time: '10:30',
+            priority: 3,
+            due: '2026-09-25',
+            text: 'review',
+        });
+        assert.deepEqual(prepare('/todo >tom call the bank', 'note', today), {
+            tag: 'todo',
+            text: 'call the bank',
+            due: '2026-09-25',
+        });
+        assert.equal('due' in prepare('/todo call the bank', 'note', today), false);
+    });
+
+    it("chooses a todo's due date from where it stands, never before today", () => {
+        const todo: Entry = {id: 1, time: '09:00', tag: 'todo', text: 'x'};
+        const planned = reducer(opened, {type: 'due.open', entry: todo, day: today});
+
+        assert.equal(due(planned), today);
+        assert.equal(due(reducer(planned, {type: 'due.step', delta: -1})), today);
+        assert.equal(due(reducer(planned, {type: 'due.step', delta: 7})), '2026-10-01');
+        assert.equal(due(reducer(planned, {type: 'due.clear'})), undefined);
+
+        const later = reducer(opened, {
+            type: 'due.open',
+            entry: {...todo, due: '2026-10-02'},
+            day: today,
+        });
+
+        assert.equal(due(later), '2026-10-02');
+        assert.equal(due(reducer(later, {type: 'due.today'})), today);
+        assert.equal(
+            due(reducer(reducer(later, {type: 'due.clear'}), {type: 'due.step', delta: 1})),
+            '2026-09-25',
+        );
     });
 });

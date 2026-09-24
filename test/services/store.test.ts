@@ -264,6 +264,25 @@ describe('store', () => {
         assert.ok(search([], 'todo', 2).some(({text}) => text === 'plain'));
     });
 
+    it('keeps a due date only where one was chosen', () => {
+        const id = add('2026-05-01', {time: '09:00', tag: 'note', text: 'due', due: '2026-05-08'});
+
+        assert.equal(get(id).due, '2026-05-08');
+
+        // left alone unless given, taken away with null
+        update(id, {tag: 'note', text: 'due, reworded'});
+        assert.equal(get(id).due, '2026-05-08');
+        update(id, {tag: 'note', text: 'due, reworded', due: null});
+        assert.equal('due' in get(id), false);
+        update(id, {tag: 'note', text: 'due, reworded', due: '2026-05-09'});
+
+        const row = get(id);
+
+        remove(id);
+        restore(row);
+        assert.equal(get(id).due, '2026-05-09');
+    });
+
     it('keeps settings as JSON, overwriting on change', () => {
         saveSetting('gap', 45);
         saveSetting('quiet', false);
@@ -327,7 +346,7 @@ describe('store', () => {
     it('records how far the schema has migrated', () => {
         const db = new DatabaseSync(path(), {readOnly: true});
 
-        assert.deepEqual({...db.prepare('PRAGMA user_version').get()}, {user_version: 11});
+        assert.deepEqual({...db.prepare('PRAGMA user_version').get()}, {user_version: 12});
         db.close();
     });
 

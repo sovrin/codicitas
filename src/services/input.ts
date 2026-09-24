@@ -1,5 +1,6 @@
 import type {Key} from 'ink';
 import {type Draft, erase, indent, insert, move, newline, outdent, vertical} from './editor';
+import type {Intent} from './journal';
 
 // oxlint-disable-next-line no-control-regex -- stripping them is the point
 const CONTROL = /[\u0000-\u001f\u007f]/g;
@@ -125,4 +126,41 @@ export const edit = (
     const {text} = line(input);
 
     return text.length > 0 ? insert(current, text, size) : undefined;
+};
+
+/**
+ * What a key does while a due date is chosen: a day or a week either way,
+ * today, none at all, or done with choosing - the same wherever a todo's date
+ * is set.
+ *
+ * @param input
+ * @param key
+ */
+export const planning = (input: string, key: Key): Intent | 'save' | 'cancel' | undefined => {
+    if (key.return || input === 'y') {
+        return 'save';
+    }
+
+    if (key.escape || input === 'q') {
+        return 'cancel';
+    }
+
+    if (key.leftArrow || key.rightArrow || input === 'h' || input === 'l') {
+        return {type: 'due.step', delta: key.leftArrow || input === 'h' ? -1 : 1};
+    }
+
+    // a week is a row of the calendar: up is back, down is on
+    if (key.upArrow || key.downArrow || input === 'k' || input === 'j') {
+        return {type: 'due.step', delta: key.upArrow || input === 'k' ? -7 : 7};
+    }
+
+    if (input === 't') {
+        return {type: 'due.today'};
+    }
+
+    if (key.backspace || key.delete || input === 'n') {
+        return {type: 'due.clear'};
+    }
+
+    return undefined;
 };

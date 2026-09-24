@@ -1,5 +1,5 @@
 import {type Draft, draft} from './editor';
-import {shiftDay} from '#/utils';
+import {resolveDue, shiftDay, toKey} from '#/utils';
 
 export type Tag = 'note' | 'done' | 'todo' | 'blocked' | 'til' | 'meet';
 
@@ -39,6 +39,10 @@ export type Entry = {
      * Only set when chosen; a todo without one is mid.
      */
     priority?: Priority;
+    /**
+     * YYYY-MM-DD, the day a todo is due by. Only set when chosen.
+     */
+    due?: string;
 };
 
 export type View = 'journal' | 'standup' | 'search' | 'open' | 'keys' | 'settings' | 'modules';
@@ -65,7 +69,12 @@ export type Mode =
      * Choosing a day to move an entry to. Any calendar day up to today, not
      * only days with entries - moving is how a day gets its first one.
      */
-    | {kind: 'move'; index: number; target: string};
+    | {kind: 'move'; index: number; target: string}
+    /**
+     * Choosing the day a todo is due, or none. The todo is held rather than
+     * pointed at, since the open todos choose from every day.
+     */
+    | {kind: 'due'; entry: Entry; day: string; target?: string};
 
 export type State = {
     view: View;
@@ -113,6 +122,10 @@ export type Intent =
     | {type: 'move.open'}
     | {type: 'move.step'; delta: number}
     | {type: 'move.today'}
+    | {type: 'due.open'; entry: Entry; day: string}
+    | {type: 'due.step'; delta: number}
+    | {type: 'due.today'}
+    | {type: 'due.clear'}
     | {type: 'close'}
     | {type: 'query'; draft: Draft}
     | {type: 'found'; delta: number; total: number}
@@ -270,6 +283,46 @@ export const reducer = (state: State, intent: Intent): State => {
             }
 
             return {...state, mode: {...state.mode, target: state.today}};
+
+        case 'due.open':
+            // where it stands, or today for a todo that had no date yet
+            return {
+                ...state,
+                mode: {
+                    kind: 'due',
+                    entry: intent.entry,
+                    day: intent.day,
+                    target: intent.entry.due ?? state.today,
+                },
+            };
+
+        case 'due.step': {
+            if (state.mode.kind !== 'due') {
+                return state;
+            }
+
+            // a due date is set for what is ahead, so choosing stops at today
+            const target = shiftDay(state.mode.target ?? state.today, intent.delta);
+
+            return {
+                ...state,
+                mode: {...state.mode, target: target < state.today ? state.today : target},
+            };
+        }
+
+        case 'due.today':
+            if (state.mode.kind !== 'due') {
+                return state;
+            }
+
+            return {...state, mode: {...state.mode, target: state.today}};
+
+        case 'due.clear':
+            if (state.mode.kind !== 'due') {
+                return state;
+            }
+
+            return {...state, mode: {...state.mode, target: undefined}};
 
         case 'close':
             return {...state, mode: {kind: 'normal'}};
@@ -444,21 +497,40 @@ export const splitPriority = (text: string): {priority?: Priority; text: string}
     return priority ? {priority, text: text.slice(match[0].length)} : {text};
 };
 
-type Prefixes = {tag?: Tag; time?: string; priority?: Priority; text: string};
+const DUE = /^>(\S+)(?:\s+|$)/;
 
 /**
- * A /tag, an @time and a !priority at the start, in any order, each at most
- * once.
+ * ">fri send the report" is a todo due by Friday. The day is counted from
+ * today, whichever day the entry is written on, since that is when it was
+ * said. What names no day - >= among them - is left as text.
  *
  * @param text
+ * @param today
  */
-export const splitPrefixes = (text: string): Prefixes => {
+export const splitDue = (text: string, today: string = toKey()): {due?: string; text: string} => {
+    const match = DUE.exec(text);
+    const due = match ? resolveDue(match[1], today) : undefined;
+
+    return due ? {due, text: text.slice(match[0].length)} : {text};
+};
+
+type Prefixes = {tag?: Tag; time?: string; priority?: Priority; due?: string; text: string};
+
+/**
+ * A /tag, an @time, a !priority and a >due date at the start, in any order,
+ * each at most once.
+ *
+ * @param text
+ * @param today what a due date is counted from
+ */
+export const splitPrefixes = (text: string, today: string = toKey()): Prefixes => {
     const found: Prefixes = {text};
 
-    for (let round = 0; round < 3; round++) {
+    for (let round = 0; round < 4; round++) {
         const tagged = found.tag ? undefined : splitTag(found.text);
         const timed = found.time ? undefined : splitTime(found.text);
         const ranked = found.priority ? undefined : splitPriority(found.text);
+        const dated = found.due ? undefined : splitDue(found.text, today);
 
         if (tagged?.tag) {
             found.tag = tagged.tag;
@@ -469,6 +541,9 @@ export const splitPrefixes = (text: string): Prefixes => {
         } else if (ranked?.priority) {
             found.priority = ranked.priority;
             found.text = ranked.text;
+        } else if (dated?.due) {
+            found.due = dated.due;
+            found.text = dated.text;
         } else {
             break;
         }
@@ -478,6 +553,7 @@ export const splitPrefixes = (text: string): Prefixes => {
         tag: found.tag,
         time: found.time,
         ...(found.priority ? {priority: found.priority} : {}),
+        ...(found.due ? {due: found.due} : {}),
         text: found.text,
     };
 };
@@ -501,23 +577,32 @@ export const extractTag = (text: string, fallback: Tag): {tag: Tag; text: string
  *
  * @param buffer
  * @param fallback the tag chosen when the text names none
+ * @param today what a due date is counted from
  */
 export const prepare = (
     buffer: string,
     fallback: Tag,
-): {tag: Tag; text: string; time?: string; priority?: Priority} | undefined => {
+    today: string = toKey(),
+): {tag: Tag; text: string; time?: string; priority?: Priority; due?: string} | undefined => {
     const {
         tag = fallback,
         time,
         priority,
+        due,
         text,
-    } = splitPrefixes(buffer.replace(/^\s*\n/, '').trimEnd());
+    } = splitPrefixes(buffer.replace(/^\s*\n/, '').trimEnd(), today);
 
     if (text.trim().length === 0) {
         return undefined;
     }
 
-    return {tag, text, ...(time ? {time} : {}), ...(priority ? {priority} : {})};
+    return {
+        tag,
+        text,
+        ...(time ? {time} : {}),
+        ...(priority ? {priority} : {}),
+        ...(due ? {due} : {}),
+    };
 };
 
 /**

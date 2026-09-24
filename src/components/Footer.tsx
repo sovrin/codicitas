@@ -18,6 +18,7 @@ const COMPOSE_HINTS: [string, string][] = [
     ['shift+enter', 'new line'],
     ['/todo', 'tag'],
     ['!h', 'priority'],
+    ['>fri', 'due'],
     ['@9:30', 'time'],
     ['esc', 'cancel'],
 ];
@@ -38,6 +39,15 @@ const MOVE_HINTS: [string, string][] = [
     ['←→', 'day'],
     ['t', 'today'],
     ['enter', 'move'],
+    ['esc', 'cancel'],
+];
+
+export const DUE_HINTS: [string, string][] = [
+    ['←→', 'day'],
+    ['↑↓', 'week'],
+    ['t', 'today'],
+    ['n', 'no date'],
+    ['enter', 'save'],
     ['esc', 'cancel'],
 ];
 
@@ -113,11 +123,46 @@ export const Status = ({mode, entries, notice, today, suggestions, pick, width}:
         );
     }
 
+    if (mode.kind === 'due') {
+        return <Planning mode={mode} today={today} width={width} />;
+    }
+
     if (notice) {
         return <Text wrap="truncate-end">{notice}</Text>;
     }
 
     return null;
+};
+
+type PlanningProps = {
+    mode: Extract<Mode, {kind: 'due'}>;
+    today: string;
+    width: number;
+};
+
+/**
+ * The question while a todo's due date is chosen, the day on offer between
+ * arrows, the way moving an entry asks.
+ *
+ * @param mode
+ * @param today
+ * @param width
+ * @constructor
+ */
+export const Planning = ({mode, today, width}: PlanningProps) => {
+    const target = mode.target ? toHeadline(mode.target, today) : 'no date';
+    const first = quote(mode.entry.text, width - '"" is due ‹  ›'.length - target.length);
+
+    return (
+        <Text wrap="truncate-end">
+            "{first}" is due{' '}
+            <Text bold>
+                <Text dimColor>‹ </Text>
+                {target}
+                <Text dimColor> ›</Text>
+            </Text>
+        </Text>
+    );
 };
 
 type LegendProps = {
@@ -148,6 +193,9 @@ export const Legend = ({mode, isCompleting, hints}: LegendProps) => {
 
         case 'move':
             return <Hints hints={MOVE_HINTS} />;
+
+        case 'due':
+            return <Hints hints={DUE_HINTS} />;
 
         default:
             return <Hints hints={HINTS} hidden={!hints} />;

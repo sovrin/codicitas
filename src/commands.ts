@@ -1,5 +1,6 @@
 import {parseArgs} from 'node:util';
 import {version} from '#/const';
+import {dueOf} from '#/services/due';
 import {prepare} from '#/services/journal';
 import {normalize} from '#/services/settings';
 import * as store from '#/services/store';
@@ -13,7 +14,8 @@ export type Result = {
 export const USAGE = `usage: codi [command]
 
   codi                     open the journal
-  codi add <text>          add an entry to today; /todo tags it, @10:30 or @10:30pm dates it
+  codi add <text>          add an entry to today; /todo tags it, @10:30 or @10:30pm dates it,
+                           >fri makes a todo due by Friday
   codi add /done -         read the text from stdin
   codi --help, -h          show this
   codi --version, -v       show the version`;
@@ -49,11 +51,12 @@ const add = async (words: string[], read: () => Promise<string>): Promise<Result
     }
 
     const time = prepared.time ?? toClock();
+    const due = dueOf(prepared);
 
     store.add(toKey(), {...prepared, time});
 
     return {
-        text: `added ${prepared.tag} at ${formatTime(time, settings.clock).trim()}: ${prepared.text.split('\n')[0]}`,
+        text: `added ${prepared.tag} at ${formatTime(time, settings.clock).trim()}${due ? `, ${due.label}` : ''}: ${prepared.text.split('\n')[0]}`,
         code: 0,
     };
 };

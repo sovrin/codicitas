@@ -1,3 +1,4 @@
+import {dueOf} from './due';
 import {markOf, type Tag} from './journal';
 import type {Found} from './store';
 import {copy, type Known} from './titles';
@@ -27,15 +28,18 @@ export const standup = (recent: Found[], open: Found[]): Section[] => [
 /**
  * Plain text for pasting into a chat. Lines after an entry's first are
  * indented under it, so a multi line entry stays one bullet, and an urgent
- * todo keeps its !! or !. References take their titles along, for whoever
- * reads it without Jira open, as each module's copy template writes them.
+ * todo keeps its !! or !, and one with a due date says it after its first
+ * line: (due fri). References take their titles along, for whoever reads it
+ * without Jira open, as each module's copy template writes them.
  *
  * @param sections
  * @param titles
+ * @param today what due dates are counted from
  */
 export const toText = (
     sections: Section[],
     titles: ReadonlyMap<string, Known> = new Map(),
+    today?: string,
 ): string =>
     sections
         .map(({title, entries}) =>
@@ -43,10 +47,15 @@ export const toText = (
                 title.charAt(0).toUpperCase() + title.slice(1),
                 ...(entries.length === 0
                     ? ['- nothing']
-                    : entries.map(
-                          (entry) =>
-                              `- ${markOf(entry)}${copy(entry.text, titles).split('\n').join('\n  ')}`,
-                      )),
+                    : entries.map((entry) => {
+                          const due = dueOf(entry, today);
+                          const [first, ...rest] = copy(entry.text, titles).split('\n');
+
+                          return [
+                              `- ${markOf(entry)}${first}${due ? ` (${due.label})` : ''}`,
+                              ...rest,
+                          ].join('\n  ');
+                      })),
             ].join('\n'),
         )
         .join('\n\n');

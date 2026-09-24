@@ -1,3 +1,4 @@
+import type {Urgency} from '#/services/due';
 import type {Priority, Tag} from '#/services/journal';
 
 type Style = {
@@ -34,3 +35,13 @@ export const styleOf = (tag: Tag, priority?: Priority): Style =>
     tag === 'todo' && priority === 1
         ? {...TAG_STYLE.todo, color: undefined, dim: true}
         : TAG_STYLE[tag];
+
+/**
+ * A due date in the colour of how it stands: red once it has passed and is in
+ * your way, yellow on the day, graphite while it can still wait.
+ */
+export const DUE_STYLE: Record<Urgency, {color?: string; dim?: boolean}> = {
+    late: {color: 'red'},
+    today: {color: 'yellow'},
+    ahead: {dim: true},
+};

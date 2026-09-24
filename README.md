@@ -1,7 +1,7 @@
 <h1 align="center">codicitas</h1>
 
 <p align="center">
-  <img src="demo/screenshot.png" width="880" alt="codicitas: today down one line. Entries with ticks and open todos, pull requests with their checks and titles from GitHub in the colour of how they stand, a Jira ticket's title, the breaks between entries, and now.">
+  <img src="demo/screenshot.png" width="880" alt="codicitas: today down one line. Entries with ticks and open todos, one of them due today, pull requests with their checks and titles from GitHub in the colour of how they stand, a Jira ticket's title, the breaks between entries, and now.">
 </p>
 
 <p align="center">
@@ -37,7 +37,7 @@ npm link
 ## See it in use
 
 <p align="center">
-  <img src="demo/demo.gif" width="880" alt="codicitas in use: the day with titles and checks from Jira and GitHub, writing an entry, the standup, open todos, search, refreshing a pull request whose checks passed, and the GitHub settings.">
+  <img src="demo/demo.gif" width="880" alt="codicitas in use: the day with titles and checks from Jira and GitHub, writing an entry and a todo due by Friday, the standup, open todos with what's due first, search, refreshing a pull request whose checks passed, and the GitHub settings.">
 </p>
 
 ## Write
@@ -45,17 +45,20 @@ npm link
 Press <kbd>i</kbd> and write where the day has got to. <kbd>enter</kbd> saves.
 
 ```
-/todo !h @10:30 review api#1502 with @mira
+/todo !h >fri @10:30 review api#1502 with @mira
 ```
 
 | Part       | What it does                                                                                                           |
 | ---------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `/todo`    | the tag: `/todo` `/done` `/blocked` `/til` `/meet` `/note`, or any start of one that is unambiguous, like `/d` or `/b` |
 | `!h`       | a todo's priority: `!c` `!h` `!m` `!l`, for critical, high, mid and low. A todo without one is mid                     |
+| `>fri`     | when a todo is due: `>fri` or `>f` for the coming Friday, `>tod` `>tom`, `>3d` `>2w`, `>2oct` or `>2026-10-02`         |
 | `@10:30`   | when it happened, for writing it down after the fact: `@22:30`, `@10:30pm` and `@9am` work too                         |
 | `api#1502` | a reference. `#topics`, `#412`, `PROJ-123`, pull requests like `legacy#12` and `@colleagues` are underlined            |
 
 The parts combine in any order. Entries are sorted by time, so one written down late still lands where it happened. Colour only appears where something needs you: yellow for open todos and now, red for what's blocking you, green for what's done. Critical todos show `!!`, high ones `!`, and low ones a grey circle.
+
+A todo with a due date says so in front of its text, counted from today: `due fri`, `due 9 Oct`, yellow on the day as `due today`, and red once it has passed, as `3d overdue`. A weekday is the coming one, next week's on the day itself, and a date without a year is the next one. Once the todo is done, its due date no longer shows.
 
 <details>
 <summary>Editing an entry</summary>
@@ -75,6 +78,24 @@ A name starts with a letter, so `@10:30` at the start is still a time.
 
 </details>
 
+<details>
+<summary>Choosing a due date</summary>
+
+<kbd>></kbd> on a todo, in the journal or under **Open todos**, asks for the day it's due, starting from the one it has, or today.
+
+| Keys                      | Do                    |
+| ------------------------- | --------------------- |
+| <kbd>←</kbd> <kbd>→</kbd> | a day earlier, later  |
+| <kbd>↑</kbd> <kbd>↓</kbd> | a week earlier, later |
+| <kbd>t</kbd>              | today                 |
+| <kbd>n</kbd>              | no due date           |
+| <kbd>enter</kbd>          | save                  |
+| <kbd>esc</kbd>            | cancel                |
+
+A due date can't be earlier than today. Editing a todo keeps its due date unless you type a new one.
+
+</details>
+
 ## Keys
 
 Press <kbd>?</kbd> in codicitas for all of them.
@@ -85,6 +106,7 @@ Press <kbd>?</kbd> in codicitas for all of them.
 | <kbd>e</kbd>              | edit the selected entry                                        |
 | <kbd>x</kbd>              | tick a todo off, or back on                                    |
 | <kbd>+</kbd> <kbd>-</kbd> | raise or lower a todo's priority                               |
+| <kbd>></kbd>              | set a todo's due date, or take it away                         |
 | <kbd>m</kbd>              | move the selected entry to another day                         |
 | <kbd>d</kbd>              | delete the selected entry                                      |
 | <kbd>u</kbd>              | undo the last change                                           |
@@ -95,12 +117,12 @@ Press <kbd>?</kbd> in codicitas for all of them.
 | <kbd>r</kbd>              | refresh the titles of the tickets and pull requests on the day |
 | <kbd>q</kbd>              | quit                                                           |
 
-| Key          | Opens                                                                                                                                                |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <kbd>s</kbd> | **Standup**: what got done since the last day you journaled, every open todo, and what's blocked. <kbd>y</kbd> copies it for your team chat          |
-| <kbd>o</kbd> | **Open todos** from every day, from critical to low and oldest first. <kbd>x</kbd> ticks one off where it was written                                |
-| <kbd>/</kbd> | **Search** every day as you type. Every word has to match; `/todo` narrows by tag, `!c` by priority, and <kbd>enter</kbd> opens the entry on its day |
-| <kbd>,</kbd> | **Settings**, saved as you change them. <kbd>tab</kbd> goes to **Modules**                                                                           |
+| Key          | Opens                                                                                                                                                          |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <kbd>s</kbd> | **Standup**: what got done since the last day you journaled, every open todo, and what's blocked. <kbd>y</kbd> copies it for your team chat, due dates and all |
+| <kbd>o</kbd> | **Open todos** from every day: what's due today or overdue first, then from critical to low and oldest first. <kbd>x</kbd> ticks one off where it was written  |
+| <kbd>/</kbd> | **Search** every day as you type. Every word has to match; `/todo` narrows by tag, `!c` by priority, and <kbd>enter</kbd> opens the entry on its day           |
+| <kbd>,</kbd> | **Settings**, saved as you change them. <kbd>tab</kbd> goes to **Modules**                                                                                     |
 
 <details>
 <summary>Settings</summary>
@@ -199,7 +221,7 @@ Each module writes its references with templates of its own, listed under **temp
 
 ```bash
 codi add "/done shipped the importer"
-codi add "/todo !h @9:30 follow up with @anna on #auth"
+codi add "/todo !h >fri @9:30 follow up with @anna on #auth"
 git log -1 --format=%s | codi add /done -
 ```
 

@@ -1,8 +1,10 @@
 import React from 'react';
 import {Box, Text} from 'ink';
+import Lead from './Lead';
 import Refs from './Refs';
 import {styleOf} from './tags';
 import {useKnown} from '#/hooks';
+import {dueOf, isPressing} from '#/services/due';
 import {markOf, MID, PRIORITIES} from '#/services/journal';
 import {highlight, snippet} from '#/services/search';
 import type {Clock} from '#/services/settings';
@@ -24,8 +26,9 @@ type Props = {
     terms?: string[];
     /**
      * Gathered under the day they were written on, or - for a backlog - under
-     * their priority, each row then saying its day. Results arrive sorted
-     * that way, so a new heading means a new group.
+     * their priority, each row then saying its day, with what is due today or
+     * overdue under due ahead of them all. Results arrive sorted that way, so
+     * a new heading means a new group.
      */
     group?: 'day' | 'priority';
 };
@@ -59,8 +62,12 @@ const Results = ({
     group = 'day',
 }: Props) => {
     const titles = useKnown();
-    const heading = ({day, priority = MID}: Found) =>
-        group === 'day' ? toHeadline(day, today) : PRIORITIES[priority - 1].name;
+    const heading = (result: Found) =>
+        group === 'day'
+            ? toHeadline(result.day, today)
+            : isPressing(result, today)
+              ? 'due'
+              : PRIORITIES[(result.priority ?? MID) - 1].name;
     const dayWidth = Math.max(0, ...results.map(({day}) => toShortLabel(day).length));
     const rows: Row[] = [];
 
@@ -102,6 +109,7 @@ const Results = ({
                 const {day, time, tag, text, priority} = result;
                 const {glyph, color, dim, italic} = styleOf(tag, priority);
                 const mark = markOf(result);
+                const due = dueOf(result, today);
                 const isSelected = row.index === selected;
                 const shown = annotate(snippet(text, terms), titles);
                 let from = 0;
@@ -119,11 +127,7 @@ const Results = ({
                             </Text>{' '}
                         </Text>
                         <Text wrap="truncate-end" bold={isSelected} italic={italic}>
-                            {mark && (
-                                <Text color="yellow" bold={priority === 4}>
-                                    {mark}
-                                </Text>
-                            )}
+                            <Lead mark={mark} due={due} priority={priority} />
                             {highlight(shown.text, terms).map((part, index) => {
                                 const before = from;
 

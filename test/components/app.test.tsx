@@ -797,6 +797,90 @@ describe('App', () => {
         assert.match(plain(lastFrame()), /H I G H\n\s+▌ 10 Sept 15:00 ○ ! update the runbook/);
     });
 
+    it('gives todos a due date as they are written and afterwards, and takes it back', async () => {
+        const {stdin, lastFrame} = render(<App today={TODAY} />);
+
+        // today is a Thursday
+        await type(stdin, 'i', '/todo >fri send the report', '\r');
+        assert.match(plain(lastFrame()), /▌ \d\d:\d\d ○ due tomorrow · send the report/);
+        assert.equal(store.load(TODAY)[0].due, '2026-09-25');
+
+        await type(stdin, '>');
+        assert.match(
+            plain(lastFrame()),
+            /"send the report" is due ‹ Friday 25 September ›\n.*←→ day\s+↑↓ week/,
+        );
+
+        await type(stdin, '\u001b[C', '\u001b[B', '\r');
+        assert.equal(store.load(TODAY)[0].due, '2026-10-03');
+        assert.match(plain(lastFrame()), /○ due 3 Oct · send the report/);
+        assert.match(plain(lastFrame()), /"send the report" is due Saturday 3 October/);
+
+        await type(stdin, '>', 'n', '\r');
+        assert.equal(store.load(TODAY)[0].due, undefined);
+        assert.match(plain(lastFrame()), /"send the report" has no due date now/);
+
+        await type(stdin, 'u');
+        assert.equal(store.load(TODAY)[0].due, '2026-10-03');
+
+        // escape keeps it as it was
+        await type(stdin, '>', 't', '\u001b');
+        await settle();
+        assert.equal(store.load(TODAY)[0].due, '2026-10-03');
+    });
+
+    it('says only todos have a due date', async () => {
+        store.add(TODAY, {time: '09:00', tag: 'note', text: 'coffee'});
+
+        const {stdin, lastFrame} = render(<App today={TODAY} />);
+
+        await type(stdin, '>');
+        assert.match(plain(lastFrame()), /Only todos have a due date/);
+    });
+
+    it('puts what is due ahead of the backlog, overdue in red', async () => {
+        store.add('2026-09-10', {
+            time: '15:00',
+            tag: 'todo',
+            text: 'renew the certificate',
+            priority: 1,
+            due: '2026-09-20',
+        });
+        store.add('2026-09-18', {
+            time: '10:00',
+            tag: 'todo',
+            text: 'hotfix the webhook',
+            priority: 4,
+        });
+        store.add(TODAY, {time: '09:00', tag: 'todo', text: 'plan the offsite', due: '2026-09-30'});
+
+        const level = chalk.level;
+
+        chalk.level = 1;
+
+        try {
+            const {stdin, lastFrame} = render(<App today={TODAY} />);
+
+            await type(stdin, 'o');
+
+            const frame = plain(lastFrame());
+
+            assert.match(frame, /Open todos\s+3 open · 1 overdue/);
+            assert.match(
+                frame,
+                /D U E\n\s+▌ 10 Sept 15:00 ○ 4d overdue · renew the certificate\n\n\s*C R I T I C A L\n\s+18 Sept 10:00 ○ !! hotfix the webhook\n\n\s*M I D\n\s+24 Sept 09:00 ○ due wed · plan the offsite/,
+            );
+            assert.equal(colourAt(lastFrame(), '4d overdue'), RED);
+
+            // set from here too, on the day it was written
+            await type(stdin, 'j', '>', 't', '\r');
+            assert.equal(store.load('2026-09-18')[0].due, TODAY);
+            assert.match(plain(lastFrame()), /3 open · 1 overdue · 1 due today/);
+        } finally {
+            chalk.level = level;
+        }
+    });
+
     describe('with Jira', () => {
         const original = globalThis.fetch;
         let asked: string[];

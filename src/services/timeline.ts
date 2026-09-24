@@ -1,3 +1,4 @@
+import {type Due, dueOf, leadOf} from './due';
 import {type Draft, locate, wrap} from './editor';
 import {type Entry, markOf, type Priority, type Tag} from './journal';
 import type {Range} from './references';
@@ -23,6 +24,11 @@ export type Row =
            * the text so wrapping makes room for it.
            */
           mark: string;
+          /**
+           * An open todo's due date, drawn after the mark on its first row,
+           * and part of the text after it.
+           */
+          due?: Due;
           /**
            * Where the row shows a reference's title, counted from the row's start.
            */
@@ -78,6 +84,10 @@ type Options = {
      * Titles of the references, shown after them and wrapped with the text.
      */
     titles?: ReadonlyMap<string, Known>;
+    /**
+     * What due dates are counted from.
+     */
+    today?: string;
 };
 
 const gapRows = (threshold: number, from: string | undefined, to: string, suffix = ''): Row[] => {
@@ -124,6 +134,7 @@ export const layout = ({
     gap: threshold = 30,
     quiet = true,
     titles = new Map(),
+    today,
 }: Options): Row[] => {
     const rows: Row[] = [];
     const gap = (from: string | undefined, to: string, suffix?: string) =>
@@ -137,7 +148,8 @@ export const layout = ({
             rows.push(...draftRows(composing, composing.time ?? entry.time, width));
         } else {
             const mark = markOf(entry);
-            const {text, notes} = annotate(mark + entry.text, titles);
+            const due = dueOf(entry, today);
+            const {text, notes} = annotate(mark + leadOf(due) + entry.text, titles);
 
             rows.push(
                 ...wrap(text, width).map((segment, at): Row => ({
@@ -148,6 +160,7 @@ export const layout = ({
                     text: segment.text,
                     isFirst: at === 0,
                     mark: at === 0 ? mark : '',
+                    ...(at === 0 && due ? {due} : {}),
                     notes: clip(notes, segment.start, segment.end),
                     ...(entry.priority ? {priority: entry.priority} : {}),
                 })),

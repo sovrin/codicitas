@@ -142,3 +142,149 @@ export const toDuration = (minutes: number): string => {
 
     return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
 };
+
+/**
+ * In the order Date counts them, Sunday first.
+ */
+const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+const MONTHS = [
+    'january',
+    'february',
+    'march',
+    'april',
+    'may',
+    'june',
+    'july',
+    'august',
+    'september',
+    'october',
+    'november',
+    'december',
+];
+
+/**
+ * The name a word stands for: the name itself, or the start of exactly one,
+ * so >f is Friday while >t stays text, being today, tomorrow, Tuesday or
+ * Thursday.
+ *
+ * @param word
+ * @param names
+ */
+const unique = (word: string, names: string[]): string | undefined => {
+    if (names.includes(word)) {
+        return word;
+    }
+
+    const matches = names.filter((name) => name.startsWith(word));
+
+    return matches.length === 1 ? matches[0] : undefined;
+};
+
+/**
+ * Days from one day to another, negative when it lies behind. Rounded, since
+ * a day that changes the clock is an hour short or long.
+ *
+ * @param from
+ * @param to
+ */
+export const daysBetween = (from: string, to: string): number =>
+    Math.round((fromKey(to).getTime() - fromKey(from).getTime()) / 86_400_000);
+
+/**
+ * A calendar day, when there is one: 31 February is not.
+ *
+ * @param year
+ * @param month 0 for January
+ * @param day
+ */
+const dayOf = (year: number, month: number, day: number): string | undefined => {
+    const date = new Date(year, month, day);
+
+    return date.getMonth() === month && date.getDate() === day ? toKey(date) : undefined;
+};
+
+/**
+ * A day and a month, in whichever year comes next: 2 October this year while
+ * it is still ahead, next year once it has passed.
+ *
+ * @param day
+ * @param month the name as typed, three letters at least
+ * @param today
+ */
+const nextDate = (day: number, month: string, today: string): string | undefined => {
+    const name = month.length >= 3 ? unique(month, MONTHS) : undefined;
+
+    if (!name) {
+        return undefined;
+    }
+
+    const year = fromKey(today).getFullYear();
+    const index = MONTHS.indexOf(name);
+
+    // the first year that has the day still ahead; 29 February can take a few
+    for (let ahead = 0; ahead <= 8; ahead++) {
+        const date = dayOf(year + ahead, index, day);
+
+        if (date && date >= today) {
+            return date;
+        }
+    }
+
+    return undefined;
+};
+
+/**
+ * The day a word after > names, counted from today: >fri is the coming
+ * Friday, a week ahead on a Friday, since today has a name of its own; >tom
+ * tomorrow; >3d and >2w in three days and two
+ * weeks; >2oct and >oct2 the next 2 October; >2026-10-02 that very day.
+ * Anything else names no day.
+ *
+ * @param word
+ * @param today
+ */
+export const resolveDue = (word: string, today: string = toKey()): string | undefined => {
+    const lower = word.toLowerCase();
+
+    const relative = /^(\d{1,3})([dw])$/.exec(lower);
+
+    if (relative) {
+        return shiftDay(today, Number(relative[1]) * (relative[2] === 'w' ? 7 : 1));
+    }
+
+    const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(lower);
+
+    if (iso) {
+        return dayOf(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+    }
+
+    const dayFirst = /^(\d{1,2})([a-z]+)$/.exec(lower);
+    const monthFirst = /^([a-z]+)(\d{1,2})$/.exec(lower);
+
+    if (dayFirst) {
+        return nextDate(Number(dayFirst[1]), dayFirst[2], today);
+    }
+
+    if (monthFirst) {
+        return nextDate(Number(monthFirst[2]), monthFirst[1], today);
+    }
+
+    const name = /^[a-z]+$/.test(lower)
+        ? unique(lower, ['today', 'tomorrow', ...WEEKDAYS])
+        : undefined;
+
+    if (name === 'today') {
+        return today;
+    }
+
+    if (name === 'tomorrow') {
+        return shiftDay(today, 1);
+    }
+
+    if (name) {
+        return shiftDay(today, (WEEKDAYS.indexOf(name) - fromKey(today).getDay() + 7) % 7 || 7);
+    }
+
+    return undefined;
+};

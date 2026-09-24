@@ -104,6 +104,8 @@ const MIGRATIONS: (string | ((db: DatabaseSync) => void))[] = [
     // GitHub's badges are only its checks now, shown or not
     `UPDATE settings SET value = CASE value WHEN '"none"' THEN 'false' ELSE 'true' END
         WHERE key = 'githubBadges';`,
+    // the day a todo is due by, YYYY-MM-DD; empty for every entry so far
+    'ALTER TABLE entries ADD COLUMN due TEXT;',
 ];
 
 /**
@@ -181,11 +183,18 @@ export const close = (): void => {
     connection = undefined;
 };
 
-type Row = {id: number; time: string; tag: string; text: string; priority: number | null};
+type Row = {
+    id: number;
+    time: string;
+    tag: string;
+    text: string;
+    priority: number | null;
+    due: string | null;
+};
 
-const COLUMNS = 'id, time, tag, text, priority';
+const COLUMNS = 'id, time, tag, text, priority, due';
 
-const toEntry = ({id, time, tag, text, priority}: Row): Entry => ({
+const toEntry = ({id, time, tag, text, priority, due}: Row): Entry => ({
     id,
     time,
     tag: TAGS.includes(tag as Tag) ? (tag as Tag) : 'note',
@@ -193,6 +202,7 @@ const toEntry = ({id, time, tag, text, priority}: Row): Entry => ({
     ...(priority !== null && priority >= 1 && priority <= 4
         ? {priority: priority as Priority}
         : {}),
+    ...(due ? {due} : {}),
 });
 
 /**
@@ -279,7 +289,8 @@ export const search = (
 
 /**
  * Every todo not ticked off yet, from any day: the most urgent first, and
- * within a priority the oldest - the order they have been waiting in.
+ * within a priority the oldest - the order they have been waiting in. What is
+ * due comes first once sorted as a backlog, which needs to know what day it is.
  */
 export const openTodos = (): Found[] =>
     (
@@ -323,14 +334,15 @@ export const restore = ({
     tag,
     text,
     priority,
+    due,
     createdAt,
     updatedAt,
 }: Stored): void => {
     db()
         .prepare(
-            'INSERT INTO entries (id, day, time, tag, text, priority, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            'INSERT INTO entries (id, day, time, tag, text, priority, due, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
         )
-        .run(id, day, time, tag, text, priority ?? null, createdAt, updatedAt);
+        .run(id, day, time, tag, text, priority ?? null, due ?? null, createdAt, updatedAt);
 
     index(db(), id, text);
 };
@@ -340,10 +352,12 @@ export const restore = ({
  * @param day
  * @param entry
  */
-export const add = (day: string, {time, tag, text, priority}: Omit<Entry, 'id'>): number => {
+export const add = (day: string, {time, tag, text, priority, due}: Omit<Entry, 'id'>): number => {
     const {lastInsertRowid} = db()
-        .prepare('INSERT INTO entries (day, time, tag, text, priority) VALUES (?, ?, ?, ?, ?)')
-        .run(day, time, tag, text, priority ?? null);
+        .prepare(
+            'INSERT INTO entries (day, time, tag, text, priority, due) VALUES (?, ?, ?, ?, ?, ?)',
+        )
+        .run(day, time, tag, text, priority ?? null, due ?? null);
     const id = Number(lastInsertRowid);
 
     index(db(), id, text);
@@ -357,15 +371,20 @@ type Change = Pick<Entry, 'tag' | 'text'> & {
      * Left alone when missing; null takes it away, back to mid.
      */
     priority?: Priority | null;
+    /**
+     * Left alone when missing; null takes it away.
+     */
+    due?: string | null;
 };
 
 /**
- * Changes an entry's tag and text, and its time and priority when given.
+ * Changes an entry's tag and text, and its time, priority and due date when
+ * given.
  *
  * @param id
  * @param change
  */
-export const update = (id: number, {tag, text, time, priority}: Change): void => {
+export const update = (id: number, {tag, text, time, priority, due}: Change): void => {
     db()
         .prepare(
             `UPDATE entries SET tag = ?, text = ?, time = COALESCE(?, time), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?`,
@@ -374,6 +393,10 @@ export const update = (id: number, {tag, text, time, priority}: Change): void =>
 
     if (priority !== undefined) {
         db().prepare('UPDATE entries SET priority = ? WHERE id = ?').run(priority, id);
+    }
+
+    if (due !== undefined) {
+        db().prepare('UPDATE entries SET due = ? WHERE id = ?').run(due, id);
     }
 
     index(db(), id, text);

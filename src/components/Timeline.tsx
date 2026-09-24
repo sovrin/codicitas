@@ -1,9 +1,11 @@
 import React from 'react';
 import {Box, Text} from 'ink';
+import Lead from './Lead';
 import Line from './Line';
 import Refs from './Refs';
 import {styleOf, TAG_STYLE} from './tags';
 import {useKnown} from '#/hooks';
+import {leadOf} from '#/services/due';
 import type {Entry, Priority, Tag} from '#/services/journal';
 import type {Clock} from '#/services/settings';
 import {clip} from '#/services/titles';
@@ -19,6 +21,10 @@ type Props = {
      * HH:MM on today, so the rail runs on to the present.
      */
     now?: string;
+    /**
+     * What due dates are counted from, on any day.
+     */
+    today?: string;
     composing?: Composing;
     /**
      * Whether the selection is shown: not while a new entry is written.
@@ -49,6 +55,7 @@ const Glyph = ({tag, priority}: {tag: Tag; priority?: Priority}) => {
  * @param width
  * @param visible
  * @param now
+ * @param today
  * @param composing
  * @param isSelecting
  * @param gap
@@ -62,6 +69,7 @@ const Timeline = ({
     width,
     visible,
     now,
+    today,
     composing,
     isSelecting,
     gap,
@@ -69,7 +77,7 @@ const Timeline = ({
     clock,
 }: Props) => {
     const titles = useKnown();
-    const rows = layout({entries, width, now, composing, gap, quiet, titles});
+    const rows = layout({entries, width, now, composing, gap, quiet, titles, today});
     // where the rail runs: past the selection bar, the time and a space
     const blank = ' '.repeat(timeWidth(clock));
     const rail = ' '.repeat(2 + timeWidth(clock) + 1);
@@ -124,6 +132,7 @@ const Timeline = ({
                     case 'entry': {
                         const isSelected = isSelecting && row.index === index;
                         const {italic} = TAG_STYLE[row.tag];
+                        const lead = row.mark.length + leadOf(row.due).length;
 
                         return (
                             <Box key={key}>
@@ -139,15 +148,11 @@ const Timeline = ({
                                     )}{' '}
                                 </Text>
                                 <Text wrap="truncate-end" bold={isSelected} italic={italic}>
-                                    {row.mark && (
-                                        <Text color="yellow" bold={row.priority === 4}>
-                                            {row.mark}
-                                        </Text>
-                                    )}
-                                    {row.text.slice(row.mark.length) ? (
+                                    <Lead mark={row.mark} due={row.due} priority={row.priority} />
+                                    {row.text.slice(lead) ? (
                                         <Refs
-                                            text={row.text.slice(row.mark.length)}
-                                            notes={clip(row.notes, row.mark.length)}
+                                            text={row.text.slice(lead)}
+                                            notes={clip(row.notes, lead)}
                                         />
                                     ) : (
                                         ' '

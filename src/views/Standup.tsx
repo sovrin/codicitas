@@ -2,6 +2,7 @@ import React, {type ReactNode, useState} from 'react';
 import {Box, Text, useApp, useInput} from 'ink';
 import Frame from '#/components/Frame';
 import Hints from '#/components/Hints';
+import Lead from '#/components/Lead';
 import Refs from '#/components/Refs';
 import {bodyRows, contentWidth} from '#/components/layout';
 import {styleOf, TAG_STYLE} from '#/components/tags';
@@ -9,6 +10,7 @@ import {useSize, useStandup, useKnown} from '#/hooks';
 import type {ViewProps} from '#/components/App';
 import {copy} from '#/services/clipboard';
 import {wrap} from '#/services/editor';
+import {dueOf, leadOf} from '#/services/due';
 import {markOf} from '#/services/journal';
 import {toText} from '#/services/standup';
 import {annotate, clip} from '#/services/titles';
@@ -60,9 +62,11 @@ const Standup = ({journal, preferences}: ViewProps) => {
                   const {id, day, text, priority} = entry;
                   const {glyph, color, dim} = styleOf(entry.tag, priority);
                   const mark = markOf(entry);
+                  const due = dueOf(entry, state.today);
+                  const lead = mark.length + leadOf(due).length;
                   // an old todo says how long it has been waiting
                   const waiting = day < window ? `waiting since ${toShortLabel(day)}` : undefined;
-                  const annotated = annotate(mark + text, titles);
+                  const annotated = annotate(mark + leadOf(due) + text, titles);
                   const segments = wrap(
                       annotated.text,
                       Math.max(10, width - INDENT - (waiting ? waiting.length + 2 : 0)),
@@ -81,16 +85,12 @@ const Standup = ({journal, preferences}: ViewProps) => {
                               ) : (
                                   ' '.repeat(INDENT)
                               )}
-                              {row === 0 && mark && (
-                                  <Text color="yellow" bold={priority === 4}>
-                                      {mark}
-                                  </Text>
-                              )}
+                              {row === 0 && <Lead mark={mark} due={due} priority={priority} />}
                               <Refs
-                                  text={row === 0 ? segment.text.slice(mark.length) : segment.text}
+                                  text={row === 0 ? segment.text.slice(lead) : segment.text}
                                   notes={clip(
                                       annotated.notes,
-                                      segment.start + (row === 0 ? mark.length : 0),
+                                      segment.start + (row === 0 ? lead : 0),
                                       segment.end,
                                   )}
                               />
@@ -137,7 +137,7 @@ const Standup = ({journal, preferences}: ViewProps) => {
         }
 
         if (input === 'y' || input === 'c') {
-            const result = copy(toText(sections, titles));
+            const result = copy(toText(sections, titles, state.today));
 
             dispatch({
                 type: 'notice',

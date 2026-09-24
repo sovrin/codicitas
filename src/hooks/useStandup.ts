@@ -1,4 +1,5 @@
 import {useMemo} from 'react';
+import {backlog} from '#/services/due';
 import {standup} from '#/services/standup';
 import * as store from '#/services/store';
 
@@ -16,7 +17,7 @@ const useStandup = (today: string, revision: number) =>
             .filter(Boolean)
             .flatMap((day) => store.load(day).map((entry) => ({...entry, day})));
 
-        return {since, sections: standup(recent, store.openTodos())};
+        return {since, sections: standup(recent, backlog(store.openTodos(), today))};
         // the revision is not read, it only says the database changed
         // oxlint-disable-next-line react-hooks/exhaustive-deps
     }, [today, revision]);

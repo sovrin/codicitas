@@ -55,6 +55,27 @@ describe('toText with priorities', () => {
     });
 });
 
+describe('toText with due dates', () => {
+    it("says a todo's due date after its first line", () => {
+        const next: Found[] = [
+            {
+                id: 9,
+                day: DAY,
+                time: '09:00',
+                tag: 'todo',
+                text: 'send the report\nwith the numbers',
+                due: '2026-09-25',
+            },
+            {id: 10, day: DAY, time: '09:00', tag: 'todo', text: 'renew', due: '2026-09-20'},
+        ];
+
+        assert.match(
+            toText(standup([], next), new Map(), DAY),
+            /Next\n- send the report \(due tomorrow\)\n  with the numbers\n- renew \(4d overdue\)/,
+        );
+    });
+});
+
 describe('toText', () => {
     it('writes one bullet per entry, continuation lines indented, empty sections said so', () => {
         assert.equal(

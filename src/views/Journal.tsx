@@ -13,7 +13,7 @@ import type {Module} from '#/modules/module';
 import type {ViewProps} from '#/components/App';
 import {candidates, complete, ghost, tokenAt} from '#/services/completion';
 import {draft, draft as empty, insert} from '#/services/editor';
-import {edit, isNewline, line, repeats} from '#/services/input';
+import {edit, isNewline, line, planning, repeats} from '#/services/input';
 import {splitPrefixes} from '#/services/journal';
 import {firstPerson, firstReference, topicsIn} from '#/services/references';
 import {toClock, toHeadline} from '#/utils';
@@ -82,7 +82,20 @@ const NOUNS = MODULES.map(({noun}) => `${noun}s`)
 const Journal = ({journal, preferences}: ViewProps) => {
     const {exit} = useApp();
     const {columns, rows} = useSize();
-    const {state, dispatch, open, go, submit, toggle, prioritize, remove, move, undo} = journal;
+    const {
+        state,
+        dispatch,
+        open,
+        go,
+        submit,
+        toggle,
+        prioritize,
+        plan,
+        schedule,
+        remove,
+        move,
+        undo,
+    } = journal;
     const {mode, entries, index, day, days, today} = state;
     const {settings} = preferences;
     const clock = toClock(useNow());
@@ -105,7 +118,7 @@ const Journal = ({journal, preferences}: ViewProps) => {
     // opens one when there is none, newlines and all
     usePaste((text) => {
         // a paste while confirming or choosing a day is not meant as an entry
-        if (mode.kind === 'confirm' || mode.kind === 'move') {
+        if (mode.kind === 'confirm' || mode.kind === 'move' || mode.kind === 'due') {
             return;
         }
 
@@ -180,6 +193,20 @@ const Journal = ({journal, preferences}: ViewProps) => {
                 dispatch({type: 'move.step', delta: key.leftArrow || input === 'h' ? -1 : 1});
             } else if (input === 't') {
                 dispatch({type: 'move.today'});
+            }
+
+            return;
+        }
+
+        if (mode.kind === 'due') {
+            const action = planning(input, key);
+
+            if (action === 'save') {
+                schedule();
+            } else if (action === 'cancel') {
+                dispatch({type: 'close'});
+            } else if (action) {
+                dispatch(action);
             }
 
             return;
@@ -264,6 +291,13 @@ const Journal = ({journal, preferences}: ViewProps) => {
             case '-':
                 if (entries[index]) {
                     prioritize(entries[index], text[0] === '-' ? -1 : 1);
+                }
+
+                return;
+
+            case '>':
+                if (entries[index]) {
+                    plan(entries[index]);
                 }
 
                 return;
@@ -452,6 +486,7 @@ const Journal = ({journal, preferences}: ViewProps) => {
                 width={width}
                 visible={visible}
                 now={day === today ? clock : undefined}
+                today={today}
                 composing={composing}
                 isSelecting={!(composing && composing.index === undefined)}
                 gap={settings.gap}
