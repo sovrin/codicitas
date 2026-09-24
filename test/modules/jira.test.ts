@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
-import {jiraOf, Refused, title, toSite} from '#/services/jira';
+import jira, {jiraOf, title, toSite} from '#/modules/jira';
+import {Refused} from '#/modules/module';
 
 const CLOUD = {site: 'https://acme.atlassian.net', email: 'me@acme.io', token: 'secret'};
 
@@ -78,5 +79,28 @@ describe('title', () => {
             title(CLOUD, 'ACME-1', undefined, answer(502).request),
             (reason) => !(reason instanceof Refused),
         );
+    });
+});
+
+describe('the Jira module', () => {
+    const settings = {jira: true, jiraSite: 'acme.atlassian.net', jiraEmail: '', jiraToken: 'x'};
+
+    it('knows tickets, and no other topics', () => {
+        assert.equal(jira.matches('ACME-4217'), true);
+        assert.equal(jira.matches('#412'), false);
+        assert.equal(jira.matches('#auth'), false);
+    });
+
+    it('is set up once it has a site and a token, keeping titles per site', () => {
+        assert.equal(jira.connect({...settings, jiraSite: ''}, {}), undefined);
+
+        const source = jira.connect(settings, {});
+
+        assert.equal(source.scope, 'https://acme.atlassian.net');
+        assert.equal(source.link('ACME-4217'), 'https://acme.atlassian.net/browse/ACME-4217');
+    });
+
+    it('starts out off', () => {
+        assert.equal(jira.defaults.jira, false);
     });
 });

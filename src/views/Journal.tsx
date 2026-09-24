@@ -6,30 +6,40 @@ import Summary from '#/components/Summary';
 import Timeline from '#/components/Timeline';
 import {WeekMarks, WeekNames} from '#/components/Week';
 import {bodyRows, contentWidth, textWidth} from '#/components/layout';
-import {TicketsContext, useMentions, useNow, useSize} from '#/hooks';
-import type {Outcome} from '#/hooks/useTickets';
+import {ModulesContext, useMentions, useNow, useSize} from '#/hooks';
+import type {Outcome} from '#/hooks/useModules';
+import {MODULES} from '#/modules';
+import type {Module} from '#/modules/module';
 import type {ViewProps} from '#/components/App';
 import {candidates, complete, ghost, tokenAt} from '#/services/completion';
 import {draft, draft as empty, insert} from '#/services/editor';
 import {edit, isNewline, line, repeats} from '#/services/input';
 import {splitPrefixes} from '#/services/journal';
-import {firstPerson, firstReference, ticketsIn} from '#/services/references';
+import {firstPerson, firstReference, topicsIn} from '#/services/references';
 import {toClock, toHeadline} from '#/utils';
 
 const plural = (count: number, word: string): string => `${count} ${word}${count === 1 ? '' : 's'}`;
 
 /**
- * What a refresh of the day's tickets came to, said in the status row.
+ * What refreshing one module's references came to, said in the status row.
  *
+ * @param module
  * @param outcome
  */
-const refreshed = ({result, found, missing}: Outcome): string | undefined =>
+const refreshed = ({name, noun}: Module, {result, found, missing}: Outcome): string | undefined =>
     ({
-        done: `Refreshed ${plural(found, 'ticket')}${missing > 0 ? `, ${missing} not in Jira` : ''}`,
-        refused: 'Jira turned the token down; check it under settings',
-        unreachable: 'Jira could not be reached',
+        done: `Refreshed ${plural(found, noun)}${missing > 0 ? `, ${missing} not in ${name}` : ''}`,
+        refused: `${name} turned the token down; check it under modules`,
+        unreachable: `${name} could not be reached`,
         dropped: undefined,
     })[result];
+
+/**
+ * What every module calls its references, for saying there are none.
+ */
+const NOUNS = MODULES.map(({noun}) => `${noun}s`)
+    .join(', ')
+    .replace(/, ([^,]*)$/, ' or $1');
 
 /**
  * A day's entries, and writing them. The mode decides what a key means, so
@@ -47,7 +57,7 @@ const Journal = ({journal, preferences}: ViewProps) => {
     const {settings} = preferences;
     const clock = toClock(useNow());
     const known = useMentions(journal.revision);
-    const {refresh} = useContext(TicketsContext);
+    const {modules} = useContext(ModulesContext);
 
     // the @name or #topic being typed, and what it could become
     const token = mode.kind === 'compose' ? tokenAt(mode.draft) : undefined;
@@ -294,22 +304,48 @@ const Journal = ({journal, preferences}: ViewProps) => {
                 return;
 
             case 'r': {
-                const keys = ticketsIn(...entries.map((entry) => entry.text));
+                const topics = topicsIn(...entries.map((entry) => entry.text));
+                // the modules with something on the day to ask about
+                const wanted = modules
+                    .map((running) => ({
+                        ...running,
+                        keys: topics.filter(running.module.matches),
+                    }))
+                    .filter(({keys}) => keys.length > 0);
+                const asking = wanted.filter(({ready}) => ready);
 
-                if (keys.length === 0) {
-                    dispatch({type: 'notice', text: 'No tickets on this day'});
+                if (wanted.length === 0) {
+                    dispatch({type: 'notice', text: `No ${NOUNS} on this day`});
+
+                    return;
+                }
+
+                if (asking.length === 0) {
+                    const [{module, enabled}] = wanted;
+
+                    dispatch({
+                        type: 'notice',
+                        text: `${enabled ? 'Set up' : 'Turn on'} ${module.name} under modules to show ${module.noun} titles`,
+                    });
 
                     return;
                 }
 
                 dispatch({
                     type: 'notice',
-                    text: `Asking Jira about ${plural(keys.length, 'ticket')}`,
+                    text: `Asking ${asking
+                        .map(
+                            ({module, keys}) =>
+                                `${module.name} about ${plural(keys.length, module.noun)}`,
+                        )
+                        .join(' and ')}`,
                 });
-                void refresh(keys).then((outcome) => {
-                    const notice = outcome
-                        ? refreshed(outcome)
-                        : 'Set up Jira under settings to show ticket titles';
+                void Promise.all(
+                    asking.map(({module, keys, refresh}) =>
+                        refresh(keys).then((outcome) => outcome && refreshed(module, outcome)),
+                    ),
+                ).then((notices) => {
+                    const notice = notices.filter(Boolean).join('; ');
 
                     if (notice) {
                         dispatch({type: 'notice', text: notice});

@@ -6,7 +6,7 @@ import {styleOf, TAG_STYLE} from './tags';
 import {useTitles} from '#/hooks';
 import type {Entry, Priority, Tag} from '#/services/journal';
 import type {Clock} from '#/services/settings';
-import {clip} from '#/services/tickets';
+import {clip} from '#/services/titles';
 import {type Composing, focusOf, layout, viewport} from '#/services/timeline';
 import {formatTime, timeWidth} from '#/utils';
 

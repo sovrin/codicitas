@@ -22,7 +22,7 @@ import {
     saveSetting,
     saveTitle,
     search,
-    tickets,
+    topics,
     titles,
     update,
 } from '#/services/store';
@@ -272,19 +272,21 @@ describe('store', () => {
         assert.deepEqual(loadSettings(), {gap: 60, quiet: false});
     });
 
-    it('lists the tickets mentioned, apart from other topics', () => {
+    it('lists the topics mentioned, tickets among them, each once', () => {
         add('2026-09-25', {time: '09:00', tag: 'done', text: 'ACME-4217 and #auth, then ACME-7'});
+        add('2026-09-26', {time: '09:00', tag: 'done', text: 'ACME-7 with @anna'});
+
+        const found = topics();
 
         assert.deepEqual(
-            tickets()
-                .filter((key) => key.startsWith('ACME'))
-                .toSorted(),
-            ['ACME-4217', 'ACME-7'],
+            found.filter((name) => ['ACME-4217', 'ACME-7', '#auth'].includes(name)).toSorted(),
+            ['#auth', 'ACME-4217', 'ACME-7'],
         );
-        assert.ok(!tickets().includes('#auth'));
+        assert.equal(found.filter((name) => name === 'ACME-7').length, 1);
+        assert.ok(!found.includes('@anna'));
     });
 
-    it('keeps what Jira said about a ticket per site, unknown tickets included', () => {
+    it('keeps what a module said about a reference per scope, unknown ones included', () => {
         saveTitle('https://acme.atlassian.net', 'ACME-4217', 'Download times out');
         saveTitle('https://acme.atlassian.net', 'UTF-8', null);
         saveTitle('https://other.example', 'ACME-4217', 'Something else entirely');
@@ -308,7 +310,7 @@ describe('store', () => {
     it('records how far the schema has migrated', () => {
         const db = new DatabaseSync(path(), {readOnly: true});
 
-        assert.deepEqual({...db.prepare('PRAGMA user_version').get()}, {user_version: 5});
+        assert.deepEqual({...db.prepare('PRAGMA user_version').get()}, {user_version: 6});
         db.close();
     });
 
@@ -336,6 +338,63 @@ describe('store', () => {
         assert.deepEqual(loadSettings(), {});
         // the mentions index is filled from what was already written
         assert.deepEqual(known('person'), ['@carla']);
+
+        close();
+        process.env.CODICITAS_DIR = root;
+    });
+
+    it('keeps Jira on, and what it said, for a journal it was set up in', () => {
+        close();
+
+        const old = join(root, 'jira');
+
+        process.env.CODICITAS_DIR = old;
+        mkdirSync(old);
+
+        const db = new DatabaseSync(join(old, 'journal.db'));
+
+        db.exec(`CREATE TABLE entries (id INTEGER PRIMARY KEY, day TEXT NOT NULL, time TEXT NOT NULL, tag TEXT NOT NULL, text TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), priority INTEGER);
+            CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            CREATE TABLE mentions (entry_id INTEGER NOT NULL, kind TEXT NOT NULL, name TEXT NOT NULL, PRIMARY KEY (entry_id, kind, name));
+            CREATE TABLE tickets (site TEXT NOT NULL, key TEXT NOT NULL, title TEXT,
+                asked_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), PRIMARY KEY (site, key));
+            INSERT INTO settings (key, value) VALUES ('jiraSite', '"acme.atlassian.net"');
+            INSERT INTO tickets (site, key, title) VALUES ('https://acme.atlassian.net', 'ACME-4217', 'Download times out');
+            PRAGMA user_version = 5;`);
+        db.close();
+
+        assert.deepEqual(loadSettings(), {jiraSite: 'acme.atlassian.net', jira: true});
+        assert.deepEqual(
+            [...titles('https://acme.atlassian.net')],
+            [['ACME-4217', 'Download times out']],
+        );
+
+        close();
+        process.env.CODICITAS_DIR = root;
+    });
+
+    it('leaves Jira off where it was never set up', () => {
+        close();
+
+        const old = join(root, 'unset');
+
+        process.env.CODICITAS_DIR = old;
+        mkdirSync(old);
+
+        const db = new DatabaseSync(join(old, 'journal.db'));
+
+        db.exec(`CREATE TABLE entries (id INTEGER PRIMARY KEY, day TEXT NOT NULL, time TEXT NOT NULL, tag TEXT NOT NULL, text TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), priority INTEGER);
+            CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            CREATE TABLE mentions (entry_id INTEGER NOT NULL, kind TEXT NOT NULL, name TEXT NOT NULL, PRIMARY KEY (entry_id, kind, name));
+            CREATE TABLE tickets (site TEXT NOT NULL, key TEXT NOT NULL, title TEXT,
+                asked_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), PRIMARY KEY (site, key));
+            INSERT INTO settings (key, value) VALUES ('jiraSite', '""');
+            PRAGMA user_version = 5;`);
+        db.close();
+
+        assert.deepEqual(loadSettings(), {jiraSite: ''});
 
         close();
         process.env.CODICITAS_DIR = root;

@@ -41,7 +41,7 @@ export type Entry = {
     priority?: Priority;
 };
 
-export type View = 'journal' | 'standup' | 'search' | 'open' | 'keys' | 'settings';
+export type View = 'journal' | 'standup' | 'search' | 'open' | 'keys' | 'settings' | 'modules';
 
 export type Mode =
     | {kind: 'normal'}

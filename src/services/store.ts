@@ -4,7 +4,7 @@ import {join} from 'node:path';
 import {DatabaseSync} from 'node:sqlite';
 import {DATA_DIR, DATABASE_FILE, SEARCH_LIMIT} from '#/const';
 import {type Entry, MID, type Priority, type Tag, TAGS} from './journal';
-import {isTicket, type Kind, mentionsIn} from './references';
+import {type Kind, mentionsIn} from './references';
 
 /**
  * Writes down who and what an entry mentions. The text stays what counts;
@@ -72,6 +72,13 @@ const MIGRATIONS: (string | ((db: DatabaseSync) => void))[] = [
         asked_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
         PRIMARY KEY (site, key)
     );`,
+    // the titles are every module's now, kept under whatever each one says
+    // they belong to; Jira, which is a module now and starts out off, stays
+    // on for a journal it was set up in
+    `ALTER TABLE tickets RENAME TO titles;
+    ALTER TABLE titles RENAME COLUMN site TO scope;
+    INSERT OR IGNORE INTO settings (key, value)
+        SELECT 'jira', 'true' FROM settings WHERE key = 'jiraSite' AND value <> '""';`,
 ];
 
 /**
@@ -420,55 +427,54 @@ export const known = (kind: Kind): string[] =>
     ).map(({name}) => name);
 
 /**
- * Every ticket mentioned so far, as written.
+ * Every topic mentioned so far, as written, for the modules to pick theirs
+ * from.
  */
-export const tickets = (): string[] =>
+export const topics = (): string[] =>
     (
         db().prepare("SELECT DISTINCT name FROM mentions WHERE kind = 'topic'").all() as {
             name: string;
         }[]
-    )
-        .map(({name}) => name)
-        .filter(isTicket);
+    ).map(({name}) => name);
 
 /**
- * The titles known for a site's tickets.
+ * The titles known under a scope, like a Jira site.
  *
- * @param site
+ * @param scope
  */
-export const titles = (site: string): Map<string, string> =>
+export const titles = (scope: string): Map<string, string> =>
     new Map(
         (
             db()
-                .prepare('SELECT key, title FROM tickets WHERE site = ? AND title IS NOT NULL')
-                .all(site) as {key: string; title: string}[]
+                .prepare('SELECT key, title FROM titles WHERE scope = ? AND title IS NOT NULL')
+                .all(scope) as {key: string; title: string}[]
         ).map(({key, title}) => [key, title]),
     );
 
 /**
- * When each of a site's tickets was last asked about, found or not.
+ * When each reference under a scope was last asked about, found or not.
  *
- * @param site
+ * @param scope
  */
-export const asked = (site: string): Map<string, string> =>
+export const asked = (scope: string): Map<string, string> =>
     new Map(
         (
             db()
-                .prepare('SELECT key, asked_at AS askedAt FROM tickets WHERE site = ?')
-                .all(site) as {key: string; askedAt: string}[]
+                .prepare('SELECT key, asked_at AS askedAt FROM titles WHERE scope = ?')
+                .all(scope) as {key: string; askedAt: string}[]
         ).map(({key, askedAt}) => [key, askedAt]),
     );
 
 /**
- * What Jira said about a ticket; null for a ticket it does not know.
+ * What a module said about a reference; null for one it does not know.
  *
- * @param site
+ * @param scope
  * @param key
  * @param title
  */
-export const saveTitle = (site: string, key: string, title: string | null): void => {
+export const saveTitle = (scope: string, key: string, title: string | null): void => {
     db()
-        .prepare(`INSERT INTO tickets (site, key, title) VALUES (?, ?, ?)
-            ON CONFLICT (site, key) DO UPDATE SET title = excluded.title, asked_at = excluded.asked_at`)
-        .run(site, key, title);
+        .prepare(`INSERT INTO titles (scope, key, title) VALUES (?, ?, ?)
+            ON CONFLICT (scope, key) DO UPDATE SET title = excluded.title, asked_at = excluded.asked_at`)
+        .run(scope, key, title);
 };

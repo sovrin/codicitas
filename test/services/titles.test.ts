@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
-import {annotate, clip, due, FRESH} from '#/services/tickets';
+import {annotate, clip, due, FRESH} from '#/services/titles';
 
 const TITLES = new Map([
     ['ACME-4217', 'Download times out'],
@@ -33,6 +33,13 @@ describe('annotate', () => {
         assert.equal(
             annotate('OPS-7', TITLES).text,
             'OPS-7 (Rotate the staging certificates before they exp…)',
+        );
+    });
+
+    it("titles any module's references, like an issue number", () => {
+        assert.equal(
+            annotate('fixed #412 and #auth', new Map([['#412', 'Crash on start']])).text,
+            'fixed #412 (Crash on start) and #auth',
         );
     });
 

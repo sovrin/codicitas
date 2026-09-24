@@ -1,7 +1,7 @@
 import {type Draft, locate, wrap} from './editor';
 import {type Entry, markOf, type Priority, type Tag} from './journal';
 import type {Range} from './references';
-import {annotate, clip} from './tickets';
+import {annotate, clip} from './titles';
 import {toDuration, toMinutes} from '#/utils';
 
 /**
@@ -24,7 +24,7 @@ export type Row =
            */
           mark: string;
           /**
-           * Where the row shows a ticket's title, counted from the row's start.
+           * Where the row shows a reference's title, counted from the row's start.
            */
           notes: Range[];
       }
@@ -75,7 +75,7 @@ type Options = {
      */
     quiet?: boolean;
     /**
-     * Ticket titles, shown after the tickets and wrapped with the text.
+     * Titles of the references, shown after them and wrapped with the text.
      */
     titles?: ReadonlyMap<string, string>;
 };

@@ -7,7 +7,7 @@ import {markOf, MID, PRIORITIES} from '#/services/journal';
 import {highlight, snippet} from '#/services/search';
 import type {Clock} from '#/services/settings';
 import type {Found} from '#/services/store';
-import {annotate, clip} from '#/services/tickets';
+import {annotate, clip} from '#/services/titles';
 import {viewport} from '#/services/timeline';
 import {formatTime, spaced, toHeadline, toShortLabel} from '#/utils';
 

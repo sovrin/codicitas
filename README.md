@@ -52,7 +52,7 @@ Press `?` in codicitas for the full list.
 | `j` `k` | move through the day                                     |
 | `←` `→` | previous and next day with entries, `t` back to today    |
 | `#` `@` | search for the selected entry's first topic or colleague |
-| `r`     | refresh the Jira titles of the tickets on the day        |
+| `r`     | refresh the titles of the tickets on the day             |
 | `q`     | quit                                                     |
 
 ## Views
@@ -62,24 +62,27 @@ Press `?` in codicitas for the full list.
 | `s` | **Standup**: what got done since the last day you journaled, every open todo, and what's blocked. `y` copies it as text for your team chat.    |
 | `o` | **Open todos** from every day as a backlog, grouped from critical to low and oldest first within each. `x` ticks one off where it was written. |
 | `/` | **Search** every day as you type. All words have to match; `/todo` narrows by tag, `!c` by priority, and enter opens the entry on its day.     |
-| `,` | **Settings**, saved as you change them.                                                                                                        |
+| `,` | **Settings**, saved as you change them. `tab` switches to **Modules**.                                                                         |
 
 The settings:
 
-| Setting                 | Choices                                                     |
-| ----------------------- | ----------------------------------------------------------- |
-| Show breaks from        | 15, 30 or 45 minutes, 1 hour, or never                      |
-| Count quiet time        | the time since your last entry above now, on or off         |
-| Week starts on          | Monday or Sunday                                            |
-| Clock                   | 24-hour or 12-hour; both can be typed either way            |
-| New entries start as    | the tag an entry gets without a `/tag`, also for `codi add` |
-| Tab width               | 2 or 4 spaces                                               |
-| Key hints               | shown or hidden, once you know them                         |
-| Jira site, email, token | where ticket titles come from; see below                    |
+| Setting              | Choices                                                     |
+| -------------------- | ----------------------------------------------------------- |
+| Show breaks from     | 15, 30 or 45 minutes, 1 hour, or never                      |
+| Count quiet time     | the time since your last entry above now, on or off         |
+| Week starts on       | Monday or Sunday                                            |
+| Clock                | 24-hour or 12-hour; both can be typed either way            |
+| New entries start as | the tag an entry gets without a `/tag`, also for `codi add` |
+| Tab width            | 2 or 4 spaces                                               |
+| Key hints            | shown or hidden, once you know them                         |
 
-## Jira
+## Modules
 
-Give codicitas your Jira under **Settings** (`,`), and every ticket like `ACME-4217` shows its title after it, faded: `ACME-4217 (Download times out)`. The ticket becomes a link to it too: cmd- or ctrl-click it in iTerm2, Ghostty, kitty, WezTerm, Windows Terminal or the VS Code and JetBrains terminals. macOS Terminal doesn't support terminal links and shows it as text. Select a Jira setting and press enter to type it.
+Modules know more about some of what you write, like the titles of your tickets. They have a page of their own: open **Settings** (`,`) and press `tab`. Each module is off until you turn it on there with `←` `→`, and `enter` opens its own settings. Titles a module finds are shown faded after what they belong to, and a reference it knows becomes a link. `r` refreshes the titles on the day you're looking at.
+
+### Jira
+
+Turn Jira on under **Modules** and give codicitas your Jira in its settings, and every ticket like `ACME-4217` shows its title after it, faded: `ACME-4217 (Download times out)`. The ticket becomes a link to it too: cmd- or ctrl-click it in iTerm2, Ghostty, kitty, WezTerm, Windows Terminal or the VS Code and JetBrains terminals. macOS Terminal doesn't support terminal links and shows it as text. Select a Jira setting and press enter to type it.
 
 | Setting | What goes there                                                                                                                             |
 | ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -88,6 +91,8 @@ Give codicitas your Jira under **Settings** (`,`), and every ticket like `ACME-4
 | Token   | a Jira Cloud [API token](https://id.atlassian.com/manage-profile/security/api-tokens), or a personal access token on Server and Data Center |
 
 Titles are asked for in the background and kept in the journal, so they show at once the next time and work offline; each is asked for again after a week. Press `r` to refresh the tickets on the day you're looking at right away. A ticket gets its title after its first mention in an entry, unless you already wrote something in brackets after it. The standup you copy with `y` takes the titles along.
+
+A journal that had Jira set up before it became a module keeps it on.
 
 The token is stored in the journal database as it is. To keep it out, leave the setting empty and set `JIRA_API_TOKEN` in your environment instead.
 
@@ -103,7 +108,7 @@ git log -1 --format=%s | codi add /done -
 
 ## Your data
 
-Everything lives in one SQLite file, `~/.local/share/codicitas/journal.db`: your entries, an index of the colleagues and topics they mention, the Jira titles of your tickets, and your settings. Back it up by copying it; it upgrades itself when a new version of codicitas needs more from it.
+Everything lives in one SQLite file, `~/.local/share/codicitas/journal.db`: your entries, an index of the colleagues and topics they mention, the titles modules found, and your settings. Back it up by copying it; it upgrades itself when a new version of codicitas needs more from it.
 
 | Variable         | Does                                           |
 | ---------------- | ---------------------------------------------- |
@@ -123,7 +128,7 @@ npm run lint
 npm run build       # bundle to dist/
 ```
 
-The code is split into `src/services` (journal logic, storage, text editing, parsing; plain functions with their own tests), `src/views` (one component per screen) and `src/components` (the pieces they share). CI runs typecheck, lint, tests and the build on Node 24 and 26.
+The code is split into `src/services` (journal logic, storage, text editing, parsing; plain functions with their own tests), `src/modules` (integrations like Jira, each with its settings and a way to look up titles), `src/views` (one component per screen) and `src/components` (the pieces they share). CI runs typecheck, lint, tests and the build on Node 24 and 26.
 
 ## License
 

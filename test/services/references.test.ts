@@ -6,7 +6,7 @@ import {
     isTicket,
     mentionsIn,
     references,
-    ticketsIn,
+    topicsIn,
 } from '#/services/references';
 
 const marked = (text: string) =>
@@ -116,9 +116,14 @@ describe('isTicket', () => {
     });
 });
 
-describe('ticketsIn', () => {
-    it('lists the tickets of several texts once each, leaving other topics out', () => {
-        assert.deepEqual(ticketsIn('ACME-1 and #auth', 'OPS-2, ACME-1 again'), ['ACME-1', 'OPS-2']);
-        assert.deepEqual(ticketsIn('nothing here'), []);
+describe('topicsIn', () => {
+    it('lists the topics of several texts once each, tickets among them, people left out', () => {
+        assert.deepEqual(topicsIn('ACME-1 and #auth with @anna', 'OPS-2, ACME-1 again, #412'), [
+            'ACME-1',
+            '#auth',
+            'OPS-2',
+            '#412',
+        ]);
+        assert.deepEqual(topicsIn('nothing here'), []);
     });
 });

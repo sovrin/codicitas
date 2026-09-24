@@ -34,3 +34,11 @@ export const quote = (text: string, max: number): string => {
  */
 export const hyperlink = (url: string, text: string): string =>
     `\u001b]8;;${url}\u0007${text}\u001b]8;;\u0007`;
+
+/**
+ * Enough of a token to tell which one it is, not enough to use it.
+ *
+ * @param token
+ */
+export const masked = (token: string): string =>
+    `${'•'.repeat(8)}${token.length > 12 ? token.slice(-4) : ''}`;

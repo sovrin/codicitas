@@ -716,6 +716,7 @@ describe('App', () => {
         });
 
         it("shows a ticket's title after it once Jira has answered, and does not ask again", async () => {
+            store.saveSetting('jira', true);
             store.saveSetting('jiraSite', 'acme.atlassian.net');
             store.saveSetting('jiraToken', 'secret');
             store.add(TODAY, {time: '09:00', tag: 'done', text: 'shipped ACME-4217 and UTF-8'});
@@ -753,6 +754,7 @@ describe('App', () => {
         });
 
         it("refreshes the day's tickets on r, however recently they were asked about", async () => {
+            store.saveSetting('jira', true);
             store.saveSetting('jiraSite', 'acme.atlassian.net');
             store.saveSetting('jiraToken', 'secret');
             store.saveTitle('https://acme.atlassian.net', 'ACME-4217', 'An old title');
@@ -783,24 +785,73 @@ describe('App', () => {
             store.add(TODAY, {time: '09:00', tag: 'done', text: 'shipped ACME-4217'});
             store.add('2026-09-20', {time: '09:00', tag: 'note', text: 'no tickets here'});
 
-            const {stdin, lastFrame} = render(<App today={TODAY} />);
+            const first = render(<App today={TODAY} />);
 
-            await type(stdin, 'r');
+            await type(first.stdin, 'r');
             await settle();
-            assert.match(plain(lastFrame()), /Set up Jira under settings to show ticket titles/);
+            assert.match(
+                plain(first.lastFrame()),
+                /Turn on Jira under modules to show ticket titles/,
+            );
 
-            await type(stdin, 'h', 'r');
-            assert.match(plain(lastFrame()), /No tickets on this day/);
+            await type(first.stdin, 'h', 'r');
+            assert.match(plain(first.lastFrame()), /No tickets on this day/);
+            first.unmount();
+
+            // on, but without a site to ask
+            store.saveSetting('jira', true);
+
+            const second = render(<App today={TODAY} />);
+
+            await type(second.stdin, 'r');
+            await settle();
+            assert.match(
+                plain(second.lastFrame()),
+                /Set up Jira under modules to show ticket titles/,
+            );
             assert.deepEqual(asked, []);
         });
 
-        it('is set up by typing in the settings, the token never shown', async () => {
+        it('shows no titles or links while turned off, and asks nothing', async () => {
+            store.saveSetting('jiraSite', 'acme.atlassian.net');
+            store.saveSetting('jiraToken', 'secret');
+            store.saveTitle('https://acme.atlassian.net', 'ACME-4217', 'Download times out');
+            store.add(TODAY, {time: '09:00', tag: 'done', text: 'shipped ACME-4217'});
+
+            const {lastFrame} = render(<App today={TODAY} />);
+
+            await settle();
+            assert.match(plain(lastFrame()), /✓ shipped ACME-4217\s*$/m);
+            assert.ok(!lastFrame().includes('browse/ACME-4217'));
+            assert.deepEqual(asked, []);
+        });
+
+        it('is turned on and set up under modules, the token never shown', async () => {
             store.add(TODAY, {time: '09:00', tag: 'done', text: 'shipped ACME-4217'});
 
             const {stdin, lastFrame} = render(<App today={TODAY} />);
 
-            await type(stdin, ',', 'j', 'j', 'j', 'j', 'j', 'j', 'j');
-            assert.match(plain(lastFrame()), /J I R A\n\s+▌ Site\s+‹ not set ›/);
+            // the general settings leave the modules to their own page
+            await type(stdin, ',');
+            assert.doesNotMatch(plain(lastFrame()), /Jira/);
+
+            await type(stdin, '\t');
+            assert.match(plain(lastFrame()), /Modules[\s\S]*▌ Jira\s+‹ off ›/);
+            assert.match(plain(lastFrame()), /Turn it on to set it up/);
+
+            // off, there is nothing to set up
+            await type(stdin, '\r');
+            assert.doesNotMatch(plain(lastFrame()), /Modules › Jira/);
+
+            await type(stdin, 'l');
+            assert.match(plain(lastFrame()), /▌ Jira\s+‹ on ›\s+not set up/);
+            assert.equal(store.loadSettings().jira, true);
+
+            await type(stdin, '\r');
+            assert.match(plain(lastFrame()), /Modules › Jira/);
+            assert.match(plain(lastFrame()), /▌ Site\s+‹ not set ›/);
+            assert.doesNotMatch(plain(lastFrame()), /Enabled/);
+            assert.match(plain(lastFrame()), /Jira needs setting up/);
 
             await type(stdin, '\r', 'acme.atlassian.net', '\r');
             assert.match(plain(lastFrame()), /▌ Site\s+‹ acme\.atlassian\.net ›/);
@@ -814,8 +865,22 @@ describe('App', () => {
             assert.match(plain(lastFrame()), /Jira answered/);
             assert.equal(store.loadSettings().jiraToken, 'ATATT3xFfGF0abcd1234');
 
+            // back to the list, and from there to the journal
+            await type(stdin, '\u001b');
+            assert.match(plain(lastFrame()), /▌ Jira\s+‹ on ›\s+working/);
+
             await type(stdin, '\u001b');
             assert.match(plain(lastFrame()), /shipped ACME-4217 \(Download times out\)/);
+        });
+
+        it('goes between settings and modules on tab', async () => {
+            const {stdin, lastFrame} = render(<App today={TODAY} />);
+
+            await type(stdin, ',', '\t');
+            assert.match(plain(lastFrame()), /Modules/);
+
+            await type(stdin, '\t');
+            assert.match(plain(lastFrame()), /Settings[\s\S]*Show breaks from/);
         });
     });
 });

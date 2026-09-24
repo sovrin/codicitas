@@ -1,10 +1,12 @@
+import {defaults, definitions, type ModuleSettings} from '#/modules';
+import {type Definition, definer} from './definition';
 import {type Tag, TAGS} from './journal';
 
 export type WeekStart = 'monday' | 'sunday';
 
 export type Clock = '24h' | '12h';
 
-export type Settings = {
+type Core = {
     /**
      * Minutes from which a break between entries is drawn; 0 draws none.
      */
@@ -31,17 +33,12 @@ export type Settings = {
      * confirming a delete - is shown either way.
      */
     hints: boolean;
-    /**
-     * The Jira tickets are looked up in; empty leaves them as written.
-     */
-    jiraSite: string;
-    /**
-     * The account a Jira Cloud API token belongs to. Empty on Jira Server and
-     * Data Center, where a personal access token is enough.
-     */
-    jiraEmail: string;
-    jiraToken: string;
 };
+
+/**
+ * The settings of codicitas itself, and of each module.
+ */
+export type Settings = Core & ModuleSettings;
 
 export const DEFAULTS: Settings = {
     gap: 30,
@@ -51,48 +48,18 @@ export const DEFAULTS: Settings = {
     tag: 'note',
     indent: 2,
     hints: true,
-    jiraSite: '',
-    jiraEmail: '',
-    jiraToken: '',
+    ...defaults(),
 };
 
-type Definition<K extends keyof Settings = keyof Settings> = {
-    id: K;
-    label: string;
-    /**
-     * What the setting changes, shown while it is selected.
-     */
-    description: string;
-    /**
-     * The values it steps through. A setting without them is typed instead,
-     * for what cannot be listed - an address, a token.
-     */
-    values?: Settings[K][];
-    format: (value: Settings[K]) => string;
-    /**
-     * A heading this setting starts, for the ones that belong together.
-     */
-    section?: string;
-};
+const define = definer<Settings>();
 
 /**
- * Enough of a token to tell which one it is, not enough to use it.
- *
- * @param token
+ * The settings of codicitas itself, in the order they are listed. Most only
+ * take the values listed with them, so they are changed by stepping through
+ * them rather than typed - there is nothing to get wrong. Only what cannot be
+ * listed, like a module's address or sign in, is typed.
  */
-export const masked = (token: string): string =>
-    `${'•'.repeat(8)}${token.length > 12 ? token.slice(-4) : ''}`;
-
-const define = <K extends keyof Settings>(definition: Definition<K>): Definition =>
-    definition as unknown as Definition;
-
-/**
- * Every setting, in the order they are listed. Most only take the values
- * listed with them, so they are changed by stepping through them rather than
- * typed - there is nothing to get wrong. Only what cannot be listed, Jira's
- * address and sign in, is typed.
- */
-export const SETTINGS: Definition[] = [
+export const GENERAL: Definition<Settings>[] = [
     define({
         id: 'gap',
         label: 'Show breaks from',
@@ -145,29 +112,12 @@ export const SETTINGS: Definition[] = [
         values: [true, false],
         format: (on) => (on ? 'shown' : 'hidden'),
     }),
-    define({
-        id: 'jiraSite',
-        label: 'Site',
-        section: 'jira',
-        description:
-            'Your Jira, like acme.atlassian.net. Tickets like PROJ-123 then show their title after them.',
-        format: (site) => site || 'not set',
-    }),
-    define({
-        id: 'jiraEmail',
-        label: 'Email',
-        description:
-            'Who the API token belongs to, on Jira Cloud. Leave it empty on Jira Server or Data Center, where a personal access token is enough.',
-        format: (email) => email || 'not set',
-    }),
-    define({
-        id: 'jiraToken',
-        label: 'Token',
-        description:
-            'An API token from id.atlassian.com, or a personal access token. Kept in the journal; leave it empty to use JIRA_API_TOKEN instead.',
-        format: (token) => (token ? masked(token) : 'not set'),
-    }),
 ];
+
+/**
+ * Every setting, codicitas' own and each module's.
+ */
+export const SETTINGS: Definition<Settings>[] = [...GENERAL, ...definitions<Settings>()];
 
 /**
  * Settings as stored, made whole: whatever is missing or no longer allowed

@@ -1,6 +1,6 @@
 import {markOf, type Tag} from './journal';
 import type {Found} from './store';
-import {annotate} from './tickets';
+import {annotate} from './titles';
 
 export type Section = {
     title: string;
@@ -27,8 +27,8 @@ export const standup = (recent: Found[], open: Found[]): Section[] => [
 /**
  * Plain text for pasting into a chat. Lines after an entry's first are
  * indented under it, so a multi line entry stays one bullet, and an urgent
- * todo keeps its !! or !. Tickets take their titles along, for whoever reads
- * it without Jira open.
+ * todo keeps its !! or !. References take their titles along, for whoever
+ * reads it without Jira open.
  *
  * @param sections
  * @param titles

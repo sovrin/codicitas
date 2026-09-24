@@ -3,6 +3,7 @@ import {Text, useApp, useInput} from 'ink';
 import Frame from '#/components/Frame';
 import Hints from '#/components/Hints';
 import {bodyRows} from '#/components/layout';
+import {MODULES} from '#/modules';
 import {useSize} from '#/hooks';
 import type {ViewProps} from '#/components/App';
 import {spaced} from '#/utils';
@@ -23,11 +24,14 @@ const GROUPS: [string, [string, string][]][] = [
             ['t', 'back to today'],
             ['o', 'open todos from every day'],
             ['s', 'standup'],
-            [',', 'settings'],
+            [',', 'settings and modules'],
             ['/', 'search every day'],
             ['#', "search for the entry's first #topic or ticket"],
             ['@', 'search for the first @colleague it mentions'],
-            ['r', "refresh the Jira titles of the day's tickets"],
+            [
+                'r',
+                `refresh the titles of the day's ${MODULES.map(({noun}) => `${noun}s`).join(' and ')}`,
+            ],
             ['q', 'quit'],
         ],
     ],
@@ -51,6 +55,7 @@ const GROUPS: [string, [string, string][]][] = [
         'elsewhere',
         [
             ['y', 'copy the standup'],
+            ['tab', 'between settings and modules'],
             ['enter', 'open a search result or todo on its day'],
             ['esc', 'back to the journal'],
         ],

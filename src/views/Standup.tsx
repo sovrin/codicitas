@@ -11,7 +11,7 @@ import {copy} from '#/services/clipboard';
 import {wrap} from '#/services/editor';
 import {markOf} from '#/services/journal';
 import {toText} from '#/services/standup';
-import {annotate, clip} from '#/services/tickets';
+import {annotate, clip} from '#/services/titles';
 import {spaced, toHeadline, toShortLabel} from '#/utils';
 
 const HINTS: [string, string][] = [

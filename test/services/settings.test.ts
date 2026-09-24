@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
-import {DEFAULTS, normalize, SETTINGS, step} from '#/services/settings';
+import {DEFAULTS, GENERAL, normalize, SETTINGS, step} from '#/services/settings';
 
 describe('normalize', () => {
     it('fills in whatever is missing with its default', () => {
@@ -53,6 +53,23 @@ describe('SETTINGS', () => {
                 id,
             );
         }
+    });
+
+    it("keeps the modules' settings apart from codicitas' own", () => {
+        const general = new Set(GENERAL.map(({id}) => id));
+
+        assert.ok(!general.has('jira'));
+        assert.ok(!general.has('jiraSite'));
+        assert.deepEqual(
+            SETTINGS.map(({id}) => id).filter((id) => !general.has(id)),
+            ['jira', 'jiraSite', 'jiraEmail', 'jiraToken'],
+        );
+    });
+
+    it('turns a module on and off', () => {
+        assert.equal(step(DEFAULTS, 'jira', 1).jira, true);
+        assert.equal(normalize({jira: true}).jira, true);
+        assert.equal(normalize({jira: 'yes'}).jira, false);
     });
 
     it('never shows a token whole', () => {

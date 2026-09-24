@@ -8,14 +8,10 @@ const KEY = '[A-Z][A-Z0-9]+-\\d+';
  * #412, or a ticket like PROJ-123. Not preceded by a word character or #, so
  * C# and ## headings stay text.
  */
-const TOPIC = new RegExp(`(?<![\\w#])(?:#\\w[\\w-]*|${KEY})\\b`, 'g');
+export const TOPIC = new RegExp(`(?<![\\w#])(?:#\\w[\\w-]*|${KEY})\\b`, 'g');
 
 /**
- * A ticket on its own, the part of a topic Jira can say more about.
- */
-export const TICKET = new RegExp(`(?<![\\w#])${KEY}\\b`, 'g');
-
-/**
+ * Whether a topic is a ticket, rather than a #topic or #412.
  *
  * @param name a topic as written
  */
@@ -139,12 +135,13 @@ export const mentionsIn = (text: string): Mention[] => {
 };
 
 /**
- * Every ticket in some texts, each once, in the order they first appear.
+ * Every topic in some texts, tickets included, each once, in the order they
+ * first appear.
  *
  * @param texts
  */
-export const ticketsIn = (...texts: string[]): string[] => [
-    ...new Set(texts.flatMap((text) => [...text.matchAll(TICKET)].map(([key]) => key))),
+export const topicsIn = (...texts: string[]): string[] => [
+    ...new Set(texts.flatMap((text) => [...text.matchAll(TOPIC)].map(([name]) => name))),
 ];
 
 /**

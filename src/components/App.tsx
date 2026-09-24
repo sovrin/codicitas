@@ -1,11 +1,12 @@
 import React from 'react';
-import {TicketsContext, useJournal, useNow, useSettings, useTickets} from '#/hooks';
+import {ModulesContext, useJournal, useModules, useNow, useSettings} from '#/hooks';
 import type {Journal as State} from '#/hooks/useJournal';
 import type {Preferences} from '#/hooks/useSettings';
 import type {View} from '#/services/journal';
 import {toKey} from '#/utils';
 import Journal from '#/views/Journal';
 import Keys from '#/views/Keys';
+import Modules from '#/views/Modules';
 import Open from '#/views/Open';
 import Search from '#/views/Search';
 import Settings from '#/views/Settings';
@@ -23,6 +24,7 @@ const VIEWS: Record<View, (props: ViewProps) => React.JSX.Element> = {
     open: Open,
     keys: Keys,
     settings: Settings,
+    modules: Modules,
 };
 
 type Props = {
@@ -43,13 +45,13 @@ const App = ({today}: Props) => {
     const now = useNow();
     const journal = useJournal(today ?? toKey(now));
     const preferences = useSettings();
-    const tickets = useTickets(preferences.settings, journal.revision);
+    const modules = useModules(preferences.settings, journal.revision);
     const Current = VIEWS[journal.state.view];
 
     return (
-        <TicketsContext.Provider value={tickets}>
+        <ModulesContext.Provider value={modules}>
             <Current journal={journal} preferences={preferences} />
-        </TicketsContext.Provider>
+        </ModulesContext.Provider>
     );
 };
 

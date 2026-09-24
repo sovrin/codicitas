@@ -1,3 +1,8 @@
+import {definer} from '#/services/definition';
+import {isTicket} from '#/services/references';
+import {masked} from '#/utils';
+import {type Module, Refused} from './module';
+
 /**
  * Where tickets are looked up. Jira Cloud signs in with an email address and
  * an API token; Jira Server and Data Center with a personal access token
@@ -11,12 +16,6 @@ export type Jira = {
     email: string;
     token: string;
 };
-
-/**
- * Jira answered, but would not say: the token is wrong, expired or lacks
- * access. Asking again with the same token will not help.
- */
-export class Refused extends Error {}
 
 /**
  * Asking about one ticket should not hold up the others for long.
@@ -113,3 +112,72 @@ export const title = async (
         ? fields.summary.trim()
         : null;
 };
+
+export type JiraSettings = {
+    /**
+     * Whether tickets are looked up at all.
+     */
+    jira: boolean;
+    /**
+     * The Jira tickets are looked up in; empty leaves them as written.
+     */
+    jiraSite: string;
+    /**
+     * The account a Jira Cloud API token belongs to. Empty on Jira Server and
+     * Data Center, where a personal access token is enough.
+     */
+    jiraEmail: string;
+    jiraToken: string;
+};
+
+const define = definer<JiraSettings>();
+
+/**
+ * Tickets like PROJ-123, with their titles after them and a link to them.
+ */
+const jira: Module<JiraSettings> = {
+    id: 'jira',
+    name: 'Jira',
+    noun: 'ticket',
+    description: 'Tickets like PROJ-123 show their title after them, and link to Jira.',
+    refused: 'Check the email and token.',
+    defaults: {jira: false, jiraSite: '', jiraEmail: '', jiraToken: ''},
+    settings: [
+        define({
+            id: 'jiraSite',
+            label: 'Site',
+            description:
+                'Your Jira, like acme.atlassian.net. Tickets like PROJ-123 then show their title after them.',
+            format: (site) => site || 'not set',
+        }),
+        define({
+            id: 'jiraEmail',
+            label: 'Email',
+            description:
+                'Who the API token belongs to, on Jira Cloud. Leave it empty on Jira Server or Data Center, where a personal access token is enough.',
+            format: (email) => email || 'not set',
+        }),
+        define({
+            id: 'jiraToken',
+            label: 'Token',
+            description:
+                'An API token from id.atlassian.com, or a personal access token. Kept in the journal; leave it empty to use JIRA_API_TOKEN instead.',
+            format: (token) => (token ? masked(token) : 'not set'),
+            secret: true,
+        }),
+    ],
+    matches: isTicket,
+    connect: ({jiraSite, jiraEmail, jiraToken}, env) => {
+        const found = jiraOf({site: jiraSite, email: jiraEmail, token: jiraToken}, env);
+
+        return (
+            found && {
+                scope: found.site,
+                title: (key, signal) => title(found, key, signal),
+                link: (key) => `${found.site}/browse/${key}`,
+            }
+        );
+    },
+};
+
+export default jira;

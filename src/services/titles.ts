@@ -1,4 +1,4 @@
-import {type Range, TICKET} from './references';
+import {type Range, TOPIC} from './references';
 import {quote} from '#/utils';
 
 /**
@@ -22,12 +22,12 @@ export type Annotated = {
 };
 
 /**
- * A text with each ticket's title after its first mention: ACME-4217 becomes
- * ACME-4217 (Download times out). A ticket already followed by brackets was
- * described by whoever wrote it, and is left as they wrote it.
+ * A text with each reference's title after its first mention: ACME-4217
+ * becomes ACME-4217 (Download times out). A reference already followed by
+ * brackets was described by whoever wrote it, and is left as they wrote it.
  *
  * @param text
- * @param titles ticket to title
+ * @param titles reference to title, from every module
  */
 export const annotate = (text: string, titles: ReadonlyMap<string, string>): Annotated => {
     if (titles.size === 0) {
@@ -40,7 +40,7 @@ export const annotate = (text: string, titles: ReadonlyMap<string, string>): Ann
     let length = 0;
     let at = 0;
 
-    for (const match of text.matchAll(TICKET)) {
+    for (const match of text.matchAll(TOPIC)) {
         const [key] = match;
         const end = match.index + key.length;
         const title = titles.get(key);
@@ -81,19 +81,19 @@ export const clip = (notes: Range[], start: number, end = Infinity): Range[] =>
         }));
 
 /**
- * The tickets to ask Jira about: the ones never asked about, and the ones
- * asked about too long ago.
+ * The references to ask a module about: the ones never asked about, and the
+ * ones asked about too long ago.
  *
- * @param tickets every ticket mentioned
- * @param asked ticket to when it was last asked about, as an ISO timestamp
+ * @param references every reference of the module's mentioned
+ * @param asked reference to when it was last asked about, as an ISO timestamp
  * @param now
  */
 export const due = (
-    tickets: string[],
+    references: string[],
     asked: ReadonlyMap<string, string>,
     now = Date.now(),
 ): string[] =>
-    tickets.filter((key) => {
+    references.filter((key) => {
         const at = asked.get(key);
 
         return at === undefined || now - Date.parse(at) > FRESH;
