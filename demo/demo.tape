@@ -1,8 +1,8 @@
 # The demo GIF, recorded with VHS (github.com/charmbracelet/vhs):
 #
-#   docker compose run --rm demo
+#   npm run record
 #
-# writes demo/demo.gif. The journal is filled by seed.ts, Jira and GitHub are
+# writes demo/demo.gif and demo/screenshot.png. The journal is filled by seed.ts, Jira and GitHub are
 # played by mock.mjs, and codi runs in tmux, whose status bar carries the
 # captions: each is set while recording is paused, so only the caption shows.
 # In a caption, a # is written ## and #[...] styles what follows, as tmux
@@ -99,7 +99,7 @@ Escape Sleep 800ms
 
 Hide
 Ctrl+B
-Type@1ms `:set -g @caption "  #[bg=#89b4fa,fg=#1e1e2e,bold] r #[default]  refresh  ·  shop##482's checks have passed meanwhile: ● becomes ✓  "`
+Type@1ms `:set -g @caption "  #[bg=#89b4fa,fg=#1e1e2e,bold] r #[default]  refresh  ·  shop##482's checks have passed meanwhile: its underline turns from yellow to green  "`
 Enter
 Sleep 150ms
 Show
@@ -127,3 +127,14 @@ Enter
 Sleep 150ms
 Show
 Sleep 3s
+
+# the README's screenshot: the day as it ends, without a caption. VHS takes
+# it from the next frame it records, so this is the last thing it records.
+Hide
+Ctrl+B
+Type@1ms `:set status off`
+Enter
+Sleep 500ms
+Show
+Screenshot demo/screenshot.png
+Sleep 300ms

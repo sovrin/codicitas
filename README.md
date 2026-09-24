@@ -1,10 +1,25 @@
-# codicitas
+<h1 align="center">codicitas</h1>
 
-A journal for your working day, in the terminal. Write down what you did, what's next and what's in your way as it happens, and get your standup, a prioritised backlog and a searchable history for free.
+<p align="center">
+  <img src="demo/screenshot.png" width="880" alt="codicitas: today down one line. Entries with ticks and open todos, pull requests with their checks and titles from GitHub in the colour of how they stand, a Jira ticket's title, the breaks between entries, and now.">
+</p>
 
-![codicitas: a day in the journal, with titles and checks from Jira and GitHub](demo/demo.gif)
+<p align="center">
+  Write down what you did, what's next and what's in your way, as it happens.<br>
+  Your standup, a backlog and a searchable history come for free.
+</p>
 
-The day runs down a single line. Breaks of half an hour or more show how long they were, and on today the line ends at **now**, with the time since your last entry just above it, so a quiet stretch is hard to miss.
+<p align="center">
+  <a href="#install">Install</a> ·
+  <a href="#see-it-in-use">Demo</a> ·
+  <a href="#write">Write</a> ·
+  <a href="#keys">Keys</a> ·
+  <a href="#modules">Jira and GitHub</a> ·
+  <a href="#from-the-shell">Shell</a> ·
+  <a href="#your-data">Your data</a>
+</p>
+
+The day runs down a single line. Breaks show how long they were, and on today the line ends at **now**, with the time since your last entry just above it, so a quiet stretch is hard to miss.
 
 ## Install
 
@@ -17,125 +32,143 @@ npm install
 npm link
 ```
 
-`npm install` builds codicitas, and `npm link` puts it on your PATH as `codi`.
+`npm install` builds it, and `npm link` puts it on your PATH as `codi`.
 
-## Writing
+## See it in use
 
-Press `i` and write where the day has got to. Enter saves.
+<p align="center">
+  <img src="demo/demo.gif" width="880" alt="codicitas in use: the day with titles and checks from Jira and GitHub, writing an entry, the standup, open todos, search, refreshing a pull request whose checks passed, and the GitHub settings.">
+</p>
 
-| Start an entry with                               | To                                                                                    |
-| ------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `/todo` `/done` `/blocked` `/til` `/meet` `/note` | tag it; any unambiguous start works, like `/d` or `/b`                                |
-| `!critical` `!high` `!mid` `!low`                 | give a todo a priority; `!c` `!h` `!m` `!l` are enough, and a todo without one is mid |
-| `@10:30` `@22:30` `@10:30pm` `@9am`               | say when it happened, for writing things down after the fact                          |
+## Write
 
-They combine in any order: `/todo !h @10:30 review the retry logic`. Entries are sorted by time, so one written down late still lands where it happened.
+Press <kbd>i</kbd> and write where the day has got to. <kbd>enter</kbd> saves.
 
-- **Shift+enter** starts a new line. In terminals that can't tell it apart from enter, use **alt+enter** or **ctrl+j**.
-- **Tab** and **shift+tab** indent and outdent, so nested lists are easy.
-- **`#topics`**, issue numbers like `#412`, pull requests like `legacy#12` and tickets like `PROJ-123` are underlined, and so are **`@colleagues`**. Names start with a letter, so `@10:30` at the start is still a time.
-- Typing `@` or `#` offers the colleagues and topics you've used before, most used first. **Tab** or **→** takes the suggestion, **ctrl+n** and **ctrl+p** choose another.
+```
+/todo !h @10:30 review api#1502 with @mira
+```
 
-Critical todos show `!!` and high ones `!` in front of their text, low ones a grey circle. Colour only appears where something needs you: yellow for open todos and now, red for what's blocking you, green for what's done.
+| Part       | What it does                                                                                                           |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `/todo`    | the tag: `/todo` `/done` `/blocked` `/til` `/meet` `/note`, or any start of one that is unambiguous, like `/d` or `/b` |
+| `!h`       | a todo's priority: `!c` `!h` `!m` `!l`, for critical, high, mid and low. A todo without one is mid                     |
+| `@10:30`   | when it happened, for writing it down after the fact: `@22:30`, `@10:30pm` and `@9am` work too                         |
+| `api#1502` | a reference. `#topics`, `#412`, `PROJ-123`, pull requests like `legacy#12` and `@colleagues` are underlined            |
+
+The parts combine in any order. Entries are sorted by time, so one written down late still lands where it happened. Colour only appears where something needs you: yellow for open todos and now, red for what's blocking you, green for what's done. Critical todos show `!!`, high ones `!`, and low ones a grey circle.
+
+<details>
+<summary>Editing an entry</summary>
+
+| Keys                                                                                   | Do                                                                                                                    |
+| -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| <kbd>shift</kbd>+<kbd>enter</kbd>                                                      | a new line; <kbd>alt</kbd>+<kbd>enter</kbd> or <kbd>ctrl</kbd>+<kbd>j</kbd> where a terminal can't tell it from enter |
+| <kbd>tab</kbd> <kbd>shift</kbd>+<kbd>tab</kbd>                                         | indent and outdent, for nested lists                                                                                  |
+| <kbd>@</kbd> <kbd>#</kbd>                                                              | offer the colleagues and topics you've used, most used first                                                          |
+| <kbd>tab</kbd> <kbd>→</kbd>                                                            | take the suggestion                                                                                                   |
+| <kbd>ctrl</kbd>+<kbd>n</kbd> <kbd>ctrl</kbd>+<kbd>p</kbd>                              | choose another suggestion                                                                                             |
+| <kbd>ctrl</kbd>+<kbd>t</kbd>                                                           | the next tag                                                                                                          |
+| <kbd>ctrl</kbd>+<kbd>w</kbd> <kbd>ctrl</kbd>+<kbd>u</kbd> <kbd>ctrl</kbd>+<kbd>k</kbd> | delete a word, to the line's start, to its end                                                                        |
+| <kbd>esc</kbd>                                                                         | cancel                                                                                                                |
+
+A name starts with a letter, so `@10:30` at the start is still a time.
+
+</details>
 
 ## Keys
 
-Press `?` in codicitas for the full list.
+Press <kbd>?</kbd> in codicitas for all of them.
 
-| Key     | Does                                                     |
-| ------- | -------------------------------------------------------- |
-| `i`     | write a new entry                                        |
-| `e`     | edit the selected entry                                  |
-| `x`     | tick a todo off, or back on                              |
-| `+` `-` | raise or lower a todo's priority                         |
-| `m`     | move the selected entry to another day                   |
-| `d`     | delete the selected entry                                |
-| `u`     | undo the last change                                     |
-| `j` `k` | move through the day                                     |
-| `←` `→` | previous and next day with entries, `t` back to today    |
-| `#` `@` | search for the selected entry's first topic or colleague |
-| `r`     | refresh the titles of the tickets on the day             |
-| `q`     | quit                                                     |
+| Key                       | In the journal                                                 |
+| ------------------------- | -------------------------------------------------------------- |
+| <kbd>i</kbd>              | write a new entry                                              |
+| <kbd>e</kbd>              | edit the selected entry                                        |
+| <kbd>x</kbd>              | tick a todo off, or back on                                    |
+| <kbd>+</kbd> <kbd>-</kbd> | raise or lower a todo's priority                               |
+| <kbd>m</kbd>              | move the selected entry to another day                         |
+| <kbd>d</kbd>              | delete the selected entry                                      |
+| <kbd>u</kbd>              | undo the last change                                           |
+| <kbd>j</kbd> <kbd>k</kbd> | move through the day                                           |
+| <kbd>←</kbd> <kbd>→</kbd> | the previous and next day with entries                         |
+| <kbd>t</kbd>              | back to today                                                  |
+| <kbd>#</kbd> <kbd>@</kbd> | search for the entry's first topic or colleague                |
+| <kbd>r</kbd>              | refresh the titles of the tickets and pull requests on the day |
+| <kbd>q</kbd>              | quit                                                           |
 
-## Views
+| Key          | Opens                                                                                                                                                |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <kbd>s</kbd> | **Standup**: what got done since the last day you journaled, every open todo, and what's blocked. <kbd>y</kbd> copies it for your team chat          |
+| <kbd>o</kbd> | **Open todos** from every day, from critical to low and oldest first. <kbd>x</kbd> ticks one off where it was written                                |
+| <kbd>/</kbd> | **Search** every day as you type. Every word has to match; `/todo` narrows by tag, `!c` by priority, and <kbd>enter</kbd> opens the entry on its day |
+| <kbd>,</kbd> | **Settings**, saved as you change them. <kbd>tab</kbd> goes to **Modules**                                                                           |
 
-| Key | View                                                                                                                                           |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `s` | **Standup**: what got done since the last day you journaled, every open todo, and what's blocked. `y` copies it as text for your team chat.    |
-| `o` | **Open todos** from every day as a backlog, grouped from critical to low and oldest first within each. `x` ticks one off where it was written. |
-| `/` | **Search** every day as you type. All words have to match; `/todo` narrows by tag, `!c` by priority, and enter opens the entry on its day.     |
-| `,` | **Settings**, saved as you change them. `tab` switches to **Modules**.                                                                         |
+<details>
+<summary>Settings</summary>
 
-The settings:
+| Setting              | Choices                                                                                 |
+| -------------------- | --------------------------------------------------------------------------------------- |
+| Show breaks from     | 15, 30 or 45 minutes, 1 hour, or never                                                  |
+| Count quiet time     | the time since your last entry above now, on or off                                     |
+| Week starts on       | Monday or Sunday                                                                        |
+| Clock                | 24-hour or 12-hour; both can be typed either way                                        |
+| New entries start as | the tag an entry gets without a `/tag`, also for `codi add`                             |
+| Tab width            | 2 or 4 spaces                                                                           |
+| Key hints            | shown or hidden, once you know them                                                     |
+| Colour-blind mode    | says with marks what is otherwise only a colour, like how a pull request's checks stand |
 
-| Setting              | Choices                                                     |
-| -------------------- | ----------------------------------------------------------- |
-| Show breaks from     | 15, 30 or 45 minutes, 1 hour, or never                      |
-| Count quiet time     | the time since your last entry above now, on or off         |
-| Week starts on       | Monday or Sunday                                            |
-| Clock                | 24-hour or 12-hour; both can be typed either way            |
-| New entries start as | the tag an entry gets without a `/tag`, also for `codi add` |
-| Tab width            | 2 or 4 spaces                                               |
-| Key hints            | shown or hidden, once you know them                         |
+</details>
 
 ## Modules
 
-Modules know more about some of what you write, like the titles of your tickets. They have a page of their own: open **Settings** (`,`) and press `tab`. Each module is off until you turn it on there with `←` `→`, and `enter` opens its own settings. What a module can't work without is listed first, under **required**, and shows `not set` in yellow until it's given; a token taken from your environment counts, and says where it comes from. Titles a module finds are shown faded after what they belong to, and a reference it knows becomes a link. A module is only asked about what is on screen, in the journal, a search, the standup or the open todos, as you get to it, and about what your open todos mention, wherever they are, since those carry over from day to day. What it answered before shows everywhere at once. `r` refreshes the titles on the day you're looking at.
+Modules know more about what you write about: a ticket's title from Jira, a pull request's checks from GitHub. Open **Settings** with <kbd>,</kbd> and press <kbd>tab</kbd>. A module is off until you turn it on with <kbd>←</kbd> <kbd>→</kbd>, and <kbd>enter</kbd> opens its settings. What it can't work without is listed first, under **required**, and says `not set` in yellow until it's given; a token from your environment counts.
+
+What a module finds is shown after what it belongs to, and a reference it knows becomes a link: <kbd>cmd</kbd>- or <kbd>ctrl</kbd>-click it in iTerm2, Ghostty, kitty, WezTerm, Windows Terminal or the VS Code and JetBrains terminals. macOS Terminal shows it as text.
+
+A module only asks about what's on screen, as you get to it, and about what your open todos mention, since those carry over from day to day. Answers are kept in the journal, so they show at once the next time and offline. <kbd>r</kbd> asks again about the day you're looking at.
 
 ### Jira
 
-Turn Jira on under **Modules** and give codicitas your Jira in its settings, and every ticket like `ACME-4217` shows its title after it, faded: `ACME-4217 (Download times out)`. The ticket becomes a link to it too: cmd- or ctrl-click it in iTerm2, Ghostty, kitty, WezTerm, Windows Terminal or the VS Code and JetBrains terminals. macOS Terminal doesn't support terminal links and shows it as text. Select a Jira setting and press enter to type it.
+Tickets like `ACME-4217` show their title after them, faded: `ACME-4217[Download times out]`. Once a ticket is done it steps back, faded as a whole, and once it's resolved as not to be done, like won't do or duplicate, it's struck through as well.
 
-| Setting | What goes there                                                                                                                             |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Site    | your Jira, like `acme.atlassian.net`                                                                                                        |
-| Email   | on Jira Cloud, the account the token belongs to. On Jira Server or Data Center leave it empty                                               |
-| Token   | a Jira Cloud [API token](https://id.atlassian.com/manage-profile/security/api-tokens), or a personal access token on Server and Data Center |
+| Setting |          | What goes there                                                                                                                             |
+| ------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Site    | required | your Jira, like `acme.atlassian.net`                                                                                                        |
+| Token   | required | a Jira Cloud [API token](https://id.atlassian.com/manage-profile/security/api-tokens), or a personal access token on Server and Data Center |
+| Email   |          | on Jira Cloud, the account the token belongs to; empty on Jira Server or Data Center                                                        |
 
-Titles are asked for in the background and kept in the journal, so they show at once the next time and work offline; each is asked for again after a week. Press `r` to refresh the tickets on the day you're looking at right away. A ticket gets its title after its first mention in an entry, unless you already wrote something in brackets after it. The standup you copy with `y` takes the titles along.
-
-A journal that had Jira set up before it became a module keeps it on.
-
-The token is stored in the journal database as it is. To keep it out, leave the setting empty and set `JIRA_API_TOKEN` in your environment instead.
-
-## From the shell
-
-```bash
-codi add "/done shipped the importer"
-codi add "/todo !h @9:30 follow up with @anna on #auth"
-git log -1 --format=%s | codi add /done -
-```
-
-`-` reads the text from stdin, so `codi` fits into git hooks and shell aliases. Commands start in a fraction of the time the full journal takes, because they never load it.
+A ticket gets its title after its first mention in an entry, unless you already wrote something in brackets after it, and the standup you copy takes the titles along. An open ticket is asked about again after a day, one that is done after a week. A journal that had Jira set up before it became a module keeps it on.
 
 ### GitHub
 
-Turn GitHub on under **Modules**, give your repositories short names, and a pull request like `legacy#12` shows how its checks stand in front of it and its title after it: `✗legacy#12 (Fix login)`. It links to the pull request too, and an issue with that number works the same way.
+Give your repositories short names, and a pull request like `legacy#12` shows its title after it, faded like Jira's, and how its checks stand in the colour of its underline: green while they pass, red while they fail, yellow while they run. Once a pull request is merged it steps back, faded, and once it's closed without merging it's struck through as well, its title with it. An issue with that number works the same way, faded once closed.
 
-| Setting      | What goes there                                                                  |
-| ------------ | -------------------------------------------------------------------------------- |
-| Repositories | short names for your repositories, like `legacy` for `sovrin/sonotas`; see below |
-| Token        | a GitHub token; see below for which                                              |
-| Titles       | shown or hidden                                                                  |
-| Colours      | by state, or off                                                                 |
-| Badges       | checks and state, checks only, or hidden                                         |
-| Look again   | every minute, every 5 or 15 minutes, or only when codi opens                     |
+> [!NOTE]
+> The underline's colour is the only thing that says how the checks stand. Turn on **Colour-blind mode** in the settings to see them as a mark after the pull request instead: `legacy#12 ✗[Fix login]`. It also helps in a terminal that draws every underline in the colour of its text; kitty, WezTerm, Ghostty, iTerm2 and the one in VS Code draw them in any colour. In tmux, let the colours through with `set -as terminal-features ',*:usstyle'`.
 
-With colours by state, a pull request and its title are drawn in the colour of how it stands: `legacy#12` is green while it is open, purple once it is merged and red once it is closed; an issue is green while open and purple once closed. With colours off, titles are faded. Titles, colours, badges and how often to look again change what you see at once, without asking GitHub again.
+| Setting      |          | What goes there                                                  |
+| ------------ | -------- | ---------------------------------------------------------------- |
+| Repositories | required | short names for repositories, like `legacy` for `sovrin/sonotas` |
+| Token        | required | a GitHub token; see [which one](#which-token)                    |
+| Titles       |          | shown or hidden                                                  |
+| Checks       |          | shown or hidden                                                  |
+| Look again   |          | every minute, every 5 or 15 minutes, or only when codi opens     |
 
-**Repositories** opens a list of its own. `a` adds one: type `sovrin/sonotas` or paste its address from GitHub, then take the short name it offers, the repository's own name, or type another. `enter` changes one and `d` deletes it. Short names you already wrote in the journal without a repository, like `legacy` from `legacy#12`, are listed too, so giving them one is a matter of `enter` and the repository.
+**Repositories** opens a list of its own. <kbd>a</kbd> adds one: type `sovrin/sonotas` or paste its address from GitHub, then take the short name it offers or type another. <kbd>enter</kbd> changes one and <kbd>d</kbd> deletes it. Short names already in your journal without a repository, like `legacy` from `legacy#12`, are waiting in the list.
 
-| Badge | Means                                          |
-| ----- | ---------------------------------------------- |
-| `✓`   | checks pass (green)                            |
-| `✗`   | checks fail (red)                              |
-| `●`   | checks are running (yellow), or a closed issue |
-| `○`   | no checks (grey), or an open issue (green)     |
-| `◆`   | merged                                         |
-| `⊘`   | closed without merging                         |
-| `?`   | the token can't read the checks                |
+<details>
+<summary>Checks</summary>
 
-While codicitas is open it looks again every minute: running checks are asked about again after a minute, other open pull requests after three, and merged or closed ones once a day. `r` asks right away.
+| Checks               | Underline | In colour-blind mode |
+| -------------------- | --------- | -------------------- |
+| pass                 | green     | `✓`                  |
+| fail                 | red       | `✗`                  |
+| are running          | yellow    | `●`                  |
+| there are none       | grey      | `○`                  |
+| the token can't read | grey      | `?`                  |
+
+Running checks are asked about again after a minute, other open pull requests after three, and merged or closed ones once a day. Titles, checks and how often to look again change what you see at once, without asking GitHub again, and so do the templates.
+
+</details>
 
 #### Which token
 
@@ -145,15 +178,36 @@ While codicitas is open it looks again every minute: running checks are asked ab
 | `gh auth token`, if you use the GitHub CLI                                          | nothing more, it has `repo` already                                 | titles, state and checks             |
 | [fine-grained](https://github.com/settings/personal-access-tokens/new)              | read access to **Pull requests** and **Issues** on the repositories | titles and state; `?` for the checks |
 
-A classic token is the one to use. GitHub has no permission for checks on fine-grained tokens, so with one codicitas can't tell whether checks pass; it shows `?` instead of guessing. An organization that uses single sign-on also needs the token authorized for it, under **Configure SSO** next to the token.
+> [!TIP]
+> Use a classic token, or leave the setting empty and `export GH_TOKEN=$(gh auth token)`. GitHub has no permission for checks on fine-grained tokens, so with one codicitas shows `?` rather than guess.
 
-A pull request that stays without a title is one GitHub didn't find. GitHub answers that way for a repository the token can't see, too, so it usually means the token: a fine-grained one needs the organization as its **resource owner**, the repository under **Repository access**, and, where the organization asks for it, its approval. **Modules** lists what GitHub didn't find, and codicitas asks about it again every quarter of an hour, or right away with `r`.
+A pull request that stays without a title is one GitHub didn't find, which is also how it answers for a repository the token can't see. A fine-grained token needs the organization as its **resource owner**, the repository under **Repository access**, and the organization's approval where it asks for it; with single sign-on, authorize the token under **Configure SSO**. **Modules** lists what GitHub didn't find, and asks again every quarter of an hour, or right away with <kbd>r</kbd>.
 
-The token is stored in the journal as it is. To keep it out, leave the setting empty and set `GITHUB_TOKEN` or `GH_TOKEN` in your environment, for example `export GH_TOKEN=$(gh auth token)`.
+### Templates
+
+Each module writes its references with templates of its own, listed under **templates** on its page. Type one to change it, with a preview of what it looks like as you type; empty it to go back to the module's default.
+
+| Template | Writes                                  | Default          | Placeholders                        |
+| -------- | --------------------------------------- | ---------------- | ----------------------------------- |
+| Title    | a title at its first mention, on screen | `{ref}[{title}]` | `{ref}` `{title}`                   |
+| Mark     | how checks stand, in colour-blind mode  | `{ref} {mark}`   | `{ref}` `{mark}`                    |
+| Copied   | a reference in the standup you copy     | `{ref}[{title}]` | `{ref}` `{title}` `{link}` `{mark}` |
+
+`[{ref}]({link}) {title}` as **Copied** pastes Markdown links, and `<{link}|{ref}> {title}` Slack's. A reference you follow with your own brackets, `(…)` or `[…]`, keeps what you wrote. `{{` and `}}` are braces.
+
+## From the shell
+
+```bash
+codi add "/done shipped the importer"
+codi add "/todo !h @9:30 follow up with @anna on #auth"
+git log -1 --format=%s | codi add /done -
+```
+
+`-` reads the text from stdin, so `codi` fits into git hooks and shell aliases. Commands start in a fraction of the time the journal takes, because they never load it.
 
 ## Your data
 
-Everything lives in one SQLite file, `~/.local/share/codicitas/journal.db`: your entries, an index of the colleagues and topics they mention, the titles modules found, and your settings. Back it up by copying it; it upgrades itself when a new version of codicitas needs more from it.
+Everything lives in one SQLite file, `~/.local/share/codicitas/journal.db`: your entries, an index of who and what they mention, what the modules found, and your settings. Back it up by copying it; it upgrades itself when a new version of codicitas needs more from it.
 
 | Variable                   | Does                                             |
 | -------------------------- | ------------------------------------------------ |
@@ -162,7 +216,10 @@ Everything lives in one SQLite file, `~/.local/share/codicitas/journal.db`: your
 | `JIRA_API_TOKEN`           | the Jira token, when the setting is left empty   |
 | `GITHUB_TOKEN`, `GH_TOKEN` | the GitHub token, when the setting is left empty |
 
-Don't keep the journal in a folder synced by Dropbox or iCloud while codicitas is open. SQLite writes a log next to the database, and a sync that copies one without the other can corrupt it.
+Tokens typed into the settings are kept in the journal as they are; the variables keep them out of it.
+
+> [!WARNING]
+> Don't keep the journal in a folder synced by Dropbox or iCloud while codicitas is open. SQLite writes a log next to the database, and a sync that copies one without the other can corrupt it.
 
 ## Development
 
@@ -174,16 +231,20 @@ npm run lint
 npm run build       # bundle to dist/
 ```
 
-The demo above is recorded with [VHS](https://github.com/charmbracelet/vhs) in Docker, against a journal filled by `demo/seed.ts` and stand-ins for Jira and GitHub in `demo/mock.mjs`, so it needs no accounts:
+The code is split into `src/services` (journal logic, storage, text editing, parsing; plain functions with their own tests), `src/modules` (integrations like Jira and GitHub, each with its settings and a way to look things up), `src/views` (one component per screen) and `src/components` (the pieces they share). CI runs typecheck, lint, tests and the build on Node 24 and 26.
+
+<details>
+<summary>Recording the demo</summary>
+
+The demo and the screenshot at the top are recorded with [VHS](https://github.com/charmbracelet/vhs) in Docker, against a journal filled by `demo/seed.ts` and stand-ins for Jira and GitHub in `demo/mock.mjs`, so it needs no accounts. codi runs in tmux, whose status bar carries the captions.
 
 ```bash
-docker compose run --rm demo           # writes demo/demo.gif
-docker compose run --build --rm demo   # after changing codicitas itself
+npm run record   # writes demo/demo.gif and demo/screenshot.png
 ```
 
-The script is `demo/demo.tape`; the tape, seed and mocks are mounted, so changing them needs no rebuild.
+It needs Docker running, and rebuilds the image when codicitas changed. The script is `demo/demo.tape`; the tape, seed and mocks are mounted into the container, so `docker compose run --rm demo` records again without a rebuild when only they changed.
 
-The code is split into `src/services` (journal logic, storage, text editing, parsing; plain functions with their own tests), `src/modules` (integrations like Jira, each with its settings and a way to look up titles), `src/views` (one component per screen) and `src/components` (the pieces they share). CI runs typecheck, lint, tests and the build on Node 24 and 26.
+</details>
 
 ## License
 

@@ -29,7 +29,8 @@
     "lint": "oxlint",
     "test": "node --import tsx --test 'test/**/*.test.ts' 'test/**/*.test.tsx'",
     "format": "oxfmt",
-    "format:check": "oxfmt --check"
+    "format:check": "oxfmt --check",
+    "record": "sh demo/record.sh"
   },
   "dependencies": {
     "chalk": "^5.6.2",

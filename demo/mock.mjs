@@ -13,10 +13,12 @@ const real = globalThis.fetch;
  */
 const RUNNING = Number(process.env.DEMO_CHECKS_RUN_FOR ?? 20_000);
 
+// a ticket's title, its status category and, once done, its resolution
 const TICKETS = {
-    'SHOP-298': 'Cart forgets its items after login',
-    'SHOP-311': 'Payments fail silently on a timeout',
-    'OPS-72': 'Rotate the staging certificates',
+    'SHOP-298': ['Cart forgets its items after login', 'done', 'Done'],
+    'SHOP-305': ['Cart empties on a second tab', 'done', 'Duplicate'],
+    'SHOP-311': ['Payments fail silently on a timeout', 'indeterminate'],
+    'OPS-72': ['Rotate the staging certificates', 'indeterminate'],
 };
 
 const PULLS = {
@@ -44,9 +46,17 @@ const json = (body, status = 200) =>
     new Response(JSON.stringify(body), {status, headers: {'Content-Type': 'application/json'}});
 
 const jira = (key) => {
-    const summary = TICKETS[key];
+    const [summary, category, resolution] = TICKETS[key] ?? [];
 
-    return summary ? json({fields: {summary}}) : json({}, 404);
+    return summary
+        ? json({
+              fields: {
+                  summary,
+                  status: {statusCategory: {key: category}},
+                  resolution: resolution ? {name: resolution} : null,
+              },
+          })
+        : json({}, 404);
 };
 
 const github = ({owner, name, number}) => {

@@ -52,6 +52,7 @@ write(yesterday, '09:30', '/done spiked #payments retries, they need idempotency
 write(yesterday, '11:15', '/blocked OPS-72 waiting on @jonas for the staging certificates');
 write(yesterday, '13:50', '/todo !c fix SHOP-311 before the release');
 write(yesterday, '15:30', '/note api#1498 closed for a smaller change');
+write(yesterday, '16:20', '/note SHOP-305 was SHOP-298 all along');
 write(yesterday, '17:05', '/todo !l tidy the #payments dashboards');
 
 write(toKey(), ago(390), '/done idempotency keys are in shop#482');
