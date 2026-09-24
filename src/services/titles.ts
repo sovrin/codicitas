@@ -23,8 +23,8 @@ export type Known = {
      */
     title?: string;
     /**
-     * The colour the title is drawn in, like purple for a merged pull
-     * request.
+     * The colour the reference and its title are drawn in, like purple for a
+     * merged pull request.
      */
     color?: string;
     /**

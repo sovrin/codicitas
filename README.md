@@ -114,11 +114,12 @@ Turn GitHub on under **Modules**, give your repositories short names, and a pull
 | ------------ | -------------------------------------------------------------------------------- |
 | Repositories | short names for your repositories, like `legacy` for `sovrin/sonotas`; see below |
 | Token        | a GitHub token; see below for which                                              |
-| Titles       | coloured by state, plain, or hidden                                              |
+| Titles       | shown or hidden                                                                  |
+| Colours      | by state, or off                                                                 |
 | Badges       | checks and state, checks only, or hidden                                         |
 | Look again   | every minute, every 5 or 15 minutes, or only when codi opens                     |
 
-A title coloured by state is drawn in the colour of how its pull request stands: green while it is open, purple once it is merged and red once it is closed; an issue's is green while open and purple once closed. Plain titles are faded instead. Titles, badges and how often to look again change what you see at once, without asking GitHub again.
+With colours by state, a pull request and its title are drawn in the colour of how it stands: `legacy#12` is green while it is open, purple once it is merged and red once it is closed; an issue is green while open and purple once closed. With colours off, titles are faded. Titles, colours, badges and how often to look again change what you see at once, without asking GitHub again.
 
 **Repositories** opens a list of its own. `a` adds one: type `sovrin/sonotas` or paste its address from GitHub, then take the short name it offers, the repository's own name, or type another. `enter` changes one and `d` deletes it. Short names you already wrote in the journal without a repository, like `legacy` from `legacy#12`, are listed too, so giving them one is a matter of `enter` and the repository.
 

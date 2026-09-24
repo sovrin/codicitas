@@ -127,8 +127,8 @@ export type Module<S = Record<string, unknown>> = {
      */
     titles?: (settings: S) => boolean;
     /**
-     * The colour a title with this status is drawn in, as set up; faded like
-     * any other note when undefined.
+     * The colour a reference with this status and its title are drawn in, as
+     * set up; the reference as any other and its title faded when undefined.
      */
     tint?: (status: string, settings: S) => string | undefined;
 };

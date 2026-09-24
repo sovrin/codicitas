@@ -21,6 +21,7 @@ type Props = {
  * as well, opened by clicking it in a terminal that can. Notes are faded, so
  * they read as an aside to what was written, unless a module gives one a
  * colour: then it is drawn in it, like a badge or a merged pull request's title.
+ * A reference a module gives a colour is drawn in it too.
  *
  * @param text
  * @param notes
@@ -45,7 +46,7 @@ const Refs = ({text, notes, bold}: Props) => {
                     key={at}
                     underline={part.isReference}
                     dimColor={part.isNote && !part.color}
-                    color={part.color}
+                    color={part.isReference ? known.get(part.text)?.color : part.color}
                     bold={bold && !part.isNote}
                 >
                     {part.isReference && known.get(part.text)?.link

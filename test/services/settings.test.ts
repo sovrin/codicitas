@@ -86,6 +86,7 @@ describe('SETTINGS', () => {
                 'githubRepositories',
                 'githubToken',
                 'githubTitles',
+                'githubColours',
                 'githubBadges',
                 'githubPoll',
             ],

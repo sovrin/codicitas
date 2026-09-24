@@ -329,10 +329,14 @@ export type GitHubSettings = {
     githubRepositories: Record<string, string>;
     githubToken: string;
     /**
-     * Whether a pull request's title is shown after it, and whether in the
-     * colour of how it stands.
+     * Whether a pull request's title is shown after it.
      */
-    githubTitles: 'coloured' | 'plain' | 'hidden';
+    githubTitles: boolean;
+    /**
+     * Whether a pull request and its title are drawn in the colour of how it
+     * stands.
+     */
+    githubColours: 'state' | 'off';
     /**
      * Which badges are drawn: all of them, those of the checks, or none.
      */
@@ -363,7 +367,8 @@ const github: Module<GitHubSettings> = {
         github: false,
         githubRepositories: {},
         githubToken: '',
-        githubTitles: 'coloured',
+        githubTitles: true,
+        githubColours: 'state',
         githubBadges: 'all',
         githubPoll: 1,
     },
@@ -417,10 +422,18 @@ const github: Module<GitHubSettings> = {
             id: 'githubTitles',
             label: 'Titles',
             description:
-                'The title after the first mention of a pull request: legacy#12 (Fix login). Coloured, it is green while open, purple once merged and red once closed; an issue green while open and purple once closed.',
-            values: ['coloured', 'plain', 'hidden'],
-            format: (titles) =>
-                ({coloured: 'coloured by state', plain: 'plain', hidden: 'hidden'})[titles],
+                'The title after the first mention of a pull request: legacy#12 (Fix login).',
+            values: [true, false],
+            format: (on) => (on ? 'shown' : 'hidden'),
+            display: true,
+        }),
+        define({
+            id: 'githubColours',
+            label: 'Colours',
+            description:
+                'A pull request and its title in the colour of how it stands: green while open, purple once merged and red once closed; an issue green while open and purple once closed.',
+            values: ['state', 'off'],
+            format: (colours) => (colours === 'state' ? 'by state' : 'off'),
             display: true,
         }),
         define({
@@ -473,8 +486,8 @@ const github: Module<GitHubSettings> = {
         githubBadges === 'all' || (githubBadges === 'checks' && CHECKS.has(status))
             ? BADGES[status]
             : undefined,
-    titles: ({githubTitles}) => githubTitles !== 'hidden',
-    tint: (status, {githubTitles}) => (githubTitles === 'coloured' ? TINTS[status] : undefined),
+    titles: ({githubTitles}) => githubTitles,
+    tint: (status, {githubColours}) => (githubColours === 'state' ? TINTS[status] : undefined),
 };
 
 export default github;

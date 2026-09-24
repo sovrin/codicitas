@@ -327,7 +327,7 @@ describe('store', () => {
     it('records how far the schema has migrated', () => {
         const db = new DatabaseSync(path(), {readOnly: true});
 
-        assert.deepEqual({...db.prepare('PRAGMA user_version').get()}, {user_version: 8});
+        assert.deepEqual({...db.prepare('PRAGMA user_version').get()}, {user_version: 9});
         db.close();
     });
 
@@ -386,6 +386,38 @@ describe('store', () => {
             [...titles('https://acme.atlassian.net')],
             [['ACME-4217', {title: 'Download times out'}]],
         );
+
+        close();
+        process.env.CODICITAS_DIR = root;
+    });
+
+    it("moves GitHub's colours out of its titles", () => {
+        const cases: [string, Record<string, unknown>][] = [
+            ['coloured', {githubTitles: true, githubColours: 'state'}],
+            ['plain', {githubTitles: true, githubColours: 'off'}],
+            ['hidden', {githubTitles: false, githubColours: 'state'}],
+        ];
+
+        for (const [setting, expected] of cases) {
+            close();
+
+            const old = join(root, `titles-${setting}`);
+
+            process.env.CODICITAS_DIR = old;
+            mkdirSync(old);
+
+            const db = new DatabaseSync(join(old, 'journal.db'));
+
+            db.exec(`CREATE TABLE entries (id INTEGER PRIMARY KEY, day TEXT NOT NULL, time TEXT NOT NULL, tag TEXT NOT NULL, text TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), priority INTEGER);
+                CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+                CREATE TABLE mentions (entry_id INTEGER NOT NULL, kind TEXT NOT NULL, name TEXT NOT NULL, PRIMARY KEY (entry_id, kind, name));
+                INSERT INTO settings (key, value) VALUES ('githubTitles', '"${setting}"');
+                PRAGMA user_version = 8;`);
+            db.close();
+
+            assert.deepEqual(loadSettings(), expected, setting);
+        }
 
         close();
         process.env.CODICITAS_DIR = root;

@@ -4,6 +4,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {afterEach, beforeEach, describe, it} from 'node:test';
 import React from 'react';
+import chalk from 'chalk';
 import {cleanup, render} from 'ink-testing-library';
 import {App} from '#/components';
 import * as store from '#/services/store';
@@ -32,6 +33,28 @@ const plain = (frame?: string): string => (frame ?? '').replace(ANSI, '').replac
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 
 const repositories = () => store.loadSettings().githubRepositories;
+
+const ESCAPE = String.fromCharCode(27);
+
+const GREEN = '32';
+
+/**
+ * The foreground colour in effect where a text starts in a frame drawn with
+ * colours on, as its code: 32 for green; undefined for the default.
+ *
+ * @param frame
+ * @param text
+ */
+const colourAt = (frame: string, text: string): string | undefined => {
+    const colour = frame
+        .slice(0, frame.indexOf(text))
+        .split(`${ESCAPE}[`)
+        .slice(1)
+        .flatMap((code) => code.slice(0, code.indexOf('m')).split(';'))
+        .findLast((code) => /^3\d$/.test(code));
+
+    return colour === '39' ? undefined : colour;
+};
 
 /**
  * Waits until the check holds, for what arrives after a round trip or two -
@@ -1091,13 +1114,40 @@ describe('App', () => {
             await type(stdin, ',', '\t', 'j', '\r', 'j', 'j', 'h');
             assert.match(plain(lastFrame()), /▌ Titles\s+‹ hidden ›/);
 
-            await type(stdin, 'j', 'h');
+            await type(stdin, 'j', 'j', 'h');
             assert.match(plain(lastFrame()), /▌ Badges\s+‹ hidden ›/);
 
             await type(stdin, '\u001b', '\u001b');
             await settle();
             assert.match(plain(lastFrame()), /review legacy#12\s*$/m);
             assert.equal(asked.length, 1);
+        });
+
+        it('draws a pull request and its title in the colour of how it stands', async () => {
+            const level = chalk.level;
+
+            chalk.level = 1;
+
+            try {
+                store.saveSetting('github', true);
+                store.saveSetting('githubRepositories', {legacy: 'sovrin/sonotas'});
+                store.saveSetting('githubToken', 'secret');
+                store.add(TODAY, {time: '09:00', tag: 'todo', text: 'review legacy#12'});
+
+                const {stdin, lastFrame} = render(<App today={TODAY} />);
+
+                await settle();
+                // open, so green: the reference and its title
+                assert.equal(colourAt(lastFrame(), 'legacy#12'), GREEN);
+                assert.equal(colourAt(lastFrame(), ' (Fix login)'), GREEN);
+
+                // colours off, the reference is drawn like any other
+                await type(stdin, ',', '\t', 'j', '\r', 'j', 'j', 'j', 'h', '\u001b', '\u001b');
+                assert.equal(store.loadSettings().githubColours, 'off');
+                assert.equal(colourAt(lastFrame(), 'legacy#12'), undefined);
+            } finally {
+                chalk.level = level;
+            }
         });
 
         it('says which pull requests GitHub did not find, and what to check', async () => {

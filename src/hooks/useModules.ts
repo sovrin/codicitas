@@ -334,7 +334,7 @@ const useModule = (
                 found.set(reference, {
                     link: source.link(key),
                     ...(titled ? {title: answer.title} : {}),
-                    ...(titled && color ? {color} : {}),
+                    ...(color ? {color} : {}),
                     ...(badge ? {badge} : {}),
                 });
             }

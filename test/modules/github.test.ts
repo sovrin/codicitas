@@ -266,12 +266,11 @@ describe('the GitHub module', () => {
 
     it('shows titles unless they are turned off', () => {
         assert.equal(github.titles(github.defaults), true);
-        assert.equal(github.titles({...github.defaults, githubTitles: 'plain'}), true);
-        assert.equal(github.titles({...github.defaults, githubTitles: 'hidden'}), false);
+        assert.equal(github.titles({...github.defaults, githubTitles: false}), false);
     });
 
-    it('colours titles by how things stand, unless they are plain', () => {
-        const plain = {...github.defaults, githubTitles: 'plain' as const};
+    it('colours pull requests by how they stand, unless colours are off', () => {
+        const plain = {...github.defaults, githubColours: 'off' as const};
 
         assert.equal(github.tint('failing', github.defaults), 'green');
         assert.equal(github.tint('merged', github.defaults), 'magenta');
@@ -314,6 +313,6 @@ describe('the GitHub module', () => {
             .filter((definition) => definition.display)
             .map(({id}) => id);
 
-        assert.deepEqual(display, ['githubTitles', 'githubBadges', 'githubPoll']);
+        assert.deepEqual(display, ['githubTitles', 'githubColours', 'githubBadges', 'githubPoll']);
     });
 });

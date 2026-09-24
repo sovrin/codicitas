@@ -91,6 +91,14 @@ const MIGRATIONS: (string | ((db: DatabaseSync) => void))[] = [
             index(db, id, text);
         }
     },
+    // GitHub's colours are a setting of their own now, apart from its titles:
+    // coloured titles keep their colours, plain ones lose them, and hidden
+    // ones leave the colour to the pull request
+    `INSERT OR REPLACE INTO settings (key, value)
+        SELECT 'githubColours', CASE value WHEN '"plain"' THEN '"off"' ELSE '"state"' END
+        FROM settings WHERE key = 'githubTitles';
+    UPDATE settings SET value = CASE value WHEN '"hidden"' THEN 'false' ELSE 'true' END
+        WHERE key = 'githubTitles';`,
 ];
 
 /**
