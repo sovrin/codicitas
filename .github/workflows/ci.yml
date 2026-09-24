@@ -10,16 +10,18 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # node:sqlite needs 22.13 or newer
-        node: [22, 24]
+        # the lts and current lines, both within engines (>=23)
+        node: [24, 26]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-      - run: npm install --production
-      - run: npm build
+      # the lockfile is not committed, so npm ci has nothing to go by
+      - run: npm install
+      - run: npm run build
       - run: npm run typecheck
       - run: npm run lint
+      - run: npm run format:check
       - run: npm test
       - run: node dist/codi.js --version
