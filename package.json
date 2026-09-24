@@ -1,0 +1,52 @@
+{
+  "name": "codicitas",
+  "version": "0.1.0",
+  "description": "dev journaling TUI",
+  "keywords": [
+    "TUI",
+    "dev journaling"
+  ],
+  "license": "MIT",
+  "author": {
+    "name": "Oleg Kamlowski",
+    "email": "oleg@kamlowski.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sovrin/codicitas.git"
+  },
+  "bin": {
+    "codi": "./dist/codi.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/cli.ts",
+    "build": "esbuild src/cli.ts --bundle --splitting --platform=node --format=esm --target=node22 --packages=external --outdir=dist --entry-names=codi --chunk-names=chunks/[name]-[hash] --log-level=warning",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint",
+    "test": "node --import tsx --test 'test/**/*.test.ts' 'test/**/*.test.tsx'",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check"
+  },
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "ink": "^7.1.1",
+    "react": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "@types/react": "^19.3.0",
+    "esbuild": "^0.28.2",
+    "ink-testing-library": "^4.0.0",
+    "oxfmt": "^0.70.0",
+    "oxlint": "^1.85.0",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=23"
+  }
+}
