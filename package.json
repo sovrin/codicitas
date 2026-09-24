@@ -24,7 +24,7 @@
   "type": "module",
   "scripts": {
     "start": "tsx src/cli.ts",
-    "build": "esbuild src/cli.ts --bundle --splitting --platform=node --format=esm --target=node22 --packages=external --outdir=dist --entry-names=codi --chunk-names=chunks/[name]-[hash] --log-level=warning",
+    "build": "esbuild src/cli.ts --bundle --splitting --platform=node --format=esm --target=node23 --packages=external --outdir=dist --entry-names=codi --chunk-names=chunks/[name]-[hash] --log-level=warning",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint",
     "test": "node --import tsx --test 'test/**/*.test.ts' 'test/**/*.test.tsx'",

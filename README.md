@@ -1,4 +1,4 @@
-# codi
+# codicitas
 
 A journal for your working day, in the terminal. Write down what you did, what's next and what's in your way as it happens, and get your standup, a prioritised backlog and a searchable history for free.
 
@@ -6,7 +6,7 @@ The day runs down a single line. Breaks of half an hour or more show how long th
 
 ## Install
 
-codi needs Node.js 22.13 or newer.
+codicitas needs Node.js 23 or newer.
 
 ```bash
 git clone https://github.com/sovrin/codicitas.git
@@ -15,7 +15,7 @@ npm install
 npm link
 ```
 
-`npm install` builds codi, and `npm link` puts the `codi` command on your PATH.
+`npm install` builds codicitas, and `npm link` puts it on your PATH as `codi`.
 
 ## Writing
 
@@ -38,7 +38,7 @@ Critical todos show `!!` and high ones `!` in front of their text, low ones a gr
 
 ## Keys
 
-Press `?` in codi for the full list.
+Press `?` in codicitas for the full list.
 
 | Key     | Does                                                     |
 | ------- | -------------------------------------------------------- |
@@ -79,7 +79,7 @@ The settings:
 
 ## Jira
 
-Give codi your Jira under **Settings** (`,`), and every ticket like `ACME-4217` shows its title after it, faded: `ACME-4217 (Download times out)`. The ticket becomes a link to it too: cmd- or ctrl-click it in iTerm2, Ghostty, kitty, WezTerm, Windows Terminal or the VS Code and JetBrains terminals. macOS Terminal doesn't support terminal links and shows it as text. Select a Jira setting and press enter to type it.
+Give codicitas your Jira under **Settings** (`,`), and every ticket like `ACME-4217` shows its title after it, faded: `ACME-4217 (Download times out)`. The ticket becomes a link to it too: cmd- or ctrl-click it in iTerm2, Ghostty, kitty, WezTerm, Windows Terminal or the VS Code and JetBrains terminals. macOS Terminal doesn't support terminal links and shows it as text. Select a Jira setting and press enter to type it.
 
 | Setting | What goes there                                                                                                                             |
 | ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -99,11 +99,11 @@ codi add "/todo !h @9:30 follow up with @anna on #auth"
 git log -1 --format=%s | codi add /done -
 ```
 
-`-` reads the text from stdin, so codi fits into git hooks and shell aliases. Commands start in a fraction of the time the full journal takes, because they never load it.
+`-` reads the text from stdin, so `codi` fits into git hooks and shell aliases. Commands start in a fraction of the time the full journal takes, because they never load it.
 
 ## Your data
 
-Everything lives in one SQLite file, `~/.local/share/codicitas/journal.db`: your entries, an index of the colleagues and topics they mention, the Jira titles of your tickets, and your settings. Back it up by copying it; it upgrades itself when a new version of codi needs more from it.
+Everything lives in one SQLite file, `~/.local/share/codicitas/journal.db`: your entries, an index of the colleagues and topics they mention, the Jira titles of your tickets, and your settings. Back it up by copying it; it upgrades itself when a new version of codicitas needs more from it.
 
 | Variable         | Does                                           |
 | ---------------- | ---------------------------------------------- |
@@ -111,7 +111,7 @@ Everything lives in one SQLite file, `~/.local/share/codicitas/journal.db`: your
 | `XDG_DATA_HOME`  | respected when `CODICITAS_DIR` isn't set       |
 | `JIRA_API_TOKEN` | the Jira token, when the setting is left empty |
 
-Don't keep the journal in a folder synced by Dropbox or iCloud while codi is open. SQLite writes a log next to the database, and a sync that copies one without the other can corrupt it.
+Don't keep the journal in a folder synced by Dropbox or iCloud while codicitas is open. SQLite writes a log next to the database, and a sync that copies one without the other can corrupt it.
 
 ## Development
 
@@ -123,7 +123,7 @@ npm run lint
 npm run build       # bundle to dist/
 ```
 
-The code is split into `src/services` (journal logic, storage, text editing, parsing; plain functions with their own tests), `src/views` (one component per screen) and `src/components` (the pieces they share). CI runs typecheck, lint, tests and the build on Node 22 and 24.
+The code is split into `src/services` (journal logic, storage, text editing, parsing; plain functions with their own tests), `src/views` (one component per screen) and `src/components` (the pieces they share). CI runs typecheck, lint, tests and the build on Node 24 and 26.
 
 ## License
 
