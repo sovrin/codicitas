@@ -4,11 +4,21 @@
 const KEY = '[A-Z][A-Z0-9]+-\\d+';
 
 /**
- * What an entry points at: a #topic, an issue or pull request number like
- * #412, or a ticket like PROJ-123. Not preceded by a word character or #, so
- * C# and ## headings stay text.
+ * An issue or pull request of a repository known by a short name: legacy#12.
+ * The name starts with a letter and ends on a letter or digit.
  */
-export const TOPIC = new RegExp(`(?<![\\w#])(?:#\\w[\\w-]*|${KEY})\\b`, 'g');
+const NUMBERED = '[A-Za-z](?:[\\w.-]*\\w)?#\\d+';
+
+/**
+ * What an entry points at: a #topic, an issue or pull request number like
+ * #412 or legacy#12, or a ticket like PROJ-123. Not preceded by a word
+ * character or #, so C# and ## headings stay text; legacy#12 not by a path
+ * or an address either, so a link's anchor stays text.
+ */
+export const TOPIC = new RegExp(
+    `(?:(?<![\\w#])(?:#\\w[\\w-]*|${KEY})|(?<![\\w#/.@-])${NUMBERED})\\b`,
+    'g',
+);
 
 /**
  * Whether a topic is a ticket, rather than a #topic or #412.
@@ -16,6 +26,13 @@ export const TOPIC = new RegExp(`(?<![\\w#])(?:#\\w[\\w-]*|${KEY})\\b`, 'g');
  * @param name a topic as written
  */
 export const isTicket = (name: string): boolean => new RegExp(`^${KEY}$`).test(name);
+
+/**
+ * Whether a topic is a repository's issue or pull request, like legacy#12.
+ *
+ * @param name a topic as written
+ */
+export const isNumbered = (name: string): boolean => new RegExp(`^${NUMBERED}$`).test(name);
 
 /**
  * Who an entry is about: @anna, @jan-erik, @anna.k. It starts with a letter,
@@ -33,14 +50,26 @@ export type Part = {
      * faded, so it is never mistaken for the entry itself.
      */
     isNote?: boolean;
+    /**
+     * A note in a colour of its own, like a merged pull request's title.
+     */
+    color?: string;
+    /**
+     * A mark rather than words, like the status of a pull request's checks:
+     * drawn in its colour at full strength rather than faded.
+     */
+    isBadge?: boolean;
 };
 
 /**
- * A stretch of a text, in code points, the way the editor counts.
+ * A stretch of a text, in code points, the way the editor counts. A note
+ * carries the colour it is drawn in, when it has one.
  */
 export type Range = {
     start: number;
     end: number;
+    color?: string;
+    badge?: boolean;
 };
 
 /**
@@ -64,7 +93,7 @@ export const references = (text: string, notes: Range[] = []): Part[] => {
         const parts: Part[] = [];
         let at = 0;
 
-        for (const {start, end} of notes.toSorted((a, b) => a.start - b.start)) {
+        for (const {start, end, color, badge} of notes.toSorted((a, b) => a.start - b.start)) {
             if (start > at) {
                 parts.push(...references(list.slice(at, start).join('')));
             }
@@ -74,6 +103,8 @@ export const references = (text: string, notes: Range[] = []): Part[] => {
                     text: list.slice(Math.max(at, start), end).join(''),
                     isReference: false,
                     isNote: true,
+                    ...(color ? {color} : {}),
+                    ...(badge ? {isBadge: true} : {}),
                 });
                 at = end;
             }

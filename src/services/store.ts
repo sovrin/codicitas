@@ -3,6 +3,7 @@ import {homedir} from 'node:os';
 import {join} from 'node:path';
 import {DatabaseSync} from 'node:sqlite';
 import {DATA_DIR, DATABASE_FILE, SEARCH_LIMIT} from '#/const';
+import type {Answer} from '#/modules/module';
 import {type Entry, MID, type Priority, type Tag, TAGS} from './journal';
 import {type Kind, mentionsIn} from './references';
 
@@ -79,6 +80,17 @@ const MIGRATIONS: (string | ((db: DatabaseSync) => void))[] = [
     ALTER TABLE titles RENAME COLUMN site TO scope;
     INSERT OR IGNORE INTO settings (key, value)
         SELECT 'jira', 'true' FROM settings WHERE key = 'jiraSite' AND value <> '""';`,
+    // what else a module made of a reference, like a pull request's checks
+    'ALTER TABLE titles ADD COLUMN status TEXT;',
+    // legacy#12 is a topic now, in entries written before it was one too
+    (db) => {
+        for (const {id, text} of db.prepare('SELECT id, text FROM entries').all() as {
+            id: number;
+            text: string;
+        }[]) {
+            index(db, id, text);
+        }
+    },
 ];
 
 /**
@@ -437,44 +449,54 @@ export const topics = (): string[] =>
         }[]
     ).map(({name}) => name);
 
+type Asked = {key: string; title: string | null; status: string | null; askedAt: string};
+
+const answerOf = ({title, status}: Asked): Answer | null =>
+    title === null ? null : {title, ...(status === null ? {} : {status})};
+
+const rows = (scope: string): Asked[] =>
+    db()
+        .prepare('SELECT key, title, status, asked_at AS askedAt FROM titles WHERE scope = ?')
+        .all(scope) as Asked[];
+
 /**
- * The titles known under a scope, like a Jira site.
+ * What is known about the references under a scope, like a Jira site.
  *
  * @param scope
  */
-export const titles = (scope: string): Map<string, string> =>
+export const titles = (scope: string): Map<string, Answer> =>
     new Map(
-        (
-            db()
-                .prepare('SELECT key, title FROM titles WHERE scope = ? AND title IS NOT NULL')
-                .all(scope) as {key: string; title: string}[]
-        ).map(({key, title}) => [key, title]),
+        rows(scope)
+            .filter(({title}) => title !== null)
+            .map((row) => [row.key, answerOf(row)]),
     );
 
 /**
- * When each reference under a scope was last asked about, found or not.
+ * When each reference under a scope was last asked about, and what came of
+ * it, found or not.
  *
  * @param scope
  */
-export const asked = (scope: string): Map<string, string> =>
-    new Map(
-        (
-            db()
-                .prepare('SELECT key, asked_at AS askedAt FROM titles WHERE scope = ?')
-                .all(scope) as {key: string; askedAt: string}[]
-        ).map(({key, askedAt}) => [key, askedAt]),
-    );
+export const asked = (scope: string): Map<string, {at: string; answer: Answer | null}> =>
+    new Map(rows(scope).map((row) => [row.key, {at: row.askedAt, answer: answerOf(row)}]));
 
 /**
- * What a module said about a reference; null for one it does not know.
+ * What a module said about a reference; a null title for one it does not
+ * know.
  *
  * @param scope
  * @param key
  * @param title
+ * @param status
  */
-export const saveTitle = (scope: string, key: string, title: string | null): void => {
+export const saveTitle = (
+    scope: string,
+    key: string,
+    title: string | null,
+    status?: string,
+): void => {
     db()
-        .prepare(`INSERT INTO titles (scope, key, title) VALUES (?, ?, ?)
-            ON CONFLICT (scope, key) DO UPDATE SET title = excluded.title, asked_at = excluded.asked_at`)
-        .run(scope, key, title);
+        .prepare(`INSERT INTO titles (scope, key, title, status) VALUES (?, ?, ?, ?)
+            ON CONFLICT (scope, key) DO UPDATE SET title = excluded.title, status = excluded.status, asked_at = excluded.asked_at`)
+        .run(scope, key, title, status ?? null);
 };

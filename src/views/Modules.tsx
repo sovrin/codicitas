@@ -4,7 +4,7 @@ import type {ViewProps} from '#/components/App';
 import Frame from '#/components/Frame';
 import Hints from '#/components/Hints';
 import Options, {type Said} from '#/components/Options';
-import {ModulesContext, type Running} from '#/hooks';
+import {ModulesContext, type Running, useMentions} from '#/hooks';
 import {MODULES} from '#/modules';
 import type {Module} from '#/modules/module';
 import type {Definition} from '#/services/definition';
@@ -34,15 +34,24 @@ const WIDTH = Math.max(...MODULES.map(({name}) => name.length)) + 4;
  *
  * @param running
  */
-const said = ({module, ready, connection}: Running): Said | undefined => {
-    const {name, noun, refused} = module;
+const said = ({module, ready, connection, missing}: Running): Said | undefined => {
+    const {name, noun, refused, unknown} = module;
 
     if (!ready) {
         return {text: `${name} needs setting up before it can be asked.`, color: 'yellow'};
     }
 
+    // answered, but not about everything - the likeliest thing to be wrong
+    if (missing.length > 0 && connection !== 'refused' && connection !== 'unreachable') {
+        const shown = missing.slice(0, 3).join(', ');
+        const more = missing.length > 3 ? ` and ${missing.length - 3} more` : '';
+
+        return {text: `${name} did not find ${shown}${more}. ${unknown}`, color: 'yellow'};
+    }
+
     return (
         {
+            waiting: {text: `Set up; ${name} is asked about ${noun}s once they are on screen.`},
             ok: {text: `${name} answered; titles show after their ${noun}s.`, color: 'green'},
             refused: {text: `${name} turned the token down. ${refused}`, color: 'red'},
             unreachable: {
@@ -58,16 +67,18 @@ const said = ({module, ready, connection}: Running): Said | undefined => {
  *
  * @param running
  */
-const brief = ({ready, connection}: Running): Said | undefined =>
-    ready
-        ? (
-              {
-                  ok: {text: 'working', color: 'green'},
-                  refused: {text: 'token turned down', color: 'red'},
-                  unreachable: {text: 'out of reach', color: 'yellow'},
-              } as Partial<Record<Running['connection'], Said>>
-          )[connection]
-        : {text: 'not set up', color: 'yellow'};
+const brief = ({ready, connection, missing}: Running): Said | undefined =>
+    ready && missing.length > 0 && connection !== 'refused' && connection !== 'unreachable'
+        ? {text: `${missing.length} not found`, color: 'yellow'}
+        : ready
+          ? (
+                {
+                    ok: {text: 'working', color: 'green'},
+                    refused: {text: 'token turned down', color: 'red'},
+                    unreachable: {text: 'out of reach', color: 'yellow'},
+                } as Partial<Record<Running['connection'], Said>>
+            )[connection]
+          : {text: 'not set up', color: 'yellow'};
 
 type ListProps = ViewProps & {
     selected: number;
@@ -191,6 +202,7 @@ const Modules = (props: ViewProps) => {
     const [selected, setSelected] = useState(0);
     const [open, setOpen] = useState<Module>();
     const running = modules.find(({module}) => module === open);
+    const {topic} = useMentions(props.journal.revision);
 
     if (!open) {
         return <List {...props} selected={selected} onSelect={setSelected} onOpen={setOpen} />;
@@ -211,6 +223,7 @@ const Modules = (props: ViewProps) => {
             preferences={props.preferences}
             status={running && said(running)}
             hints={SETUP}
+            topics={topic}
             onKey={(input, key) => {
                 if (key.escape) {
                     setOpen(undefined);

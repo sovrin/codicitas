@@ -3,7 +3,7 @@ import {Box, Text} from 'ink';
 import Line from './Line';
 import Refs from './Refs';
 import {styleOf, TAG_STYLE} from './tags';
-import {useTitles} from '#/hooks';
+import {useKnown} from '#/hooks';
 import type {Entry, Priority, Tag} from '#/services/journal';
 import type {Clock} from '#/services/settings';
 import {clip} from '#/services/titles';
@@ -68,7 +68,7 @@ const Timeline = ({
     quiet,
     clock,
 }: Props) => {
-    const titles = useTitles();
+    const titles = useKnown();
     const rows = layout({entries, width, now, composing, gap, quiet, titles});
     // where the rail runs: past the selection bar, the time and a space
     const blank = ' '.repeat(timeWidth(clock));

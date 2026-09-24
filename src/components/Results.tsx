@@ -2,7 +2,7 @@ import React from 'react';
 import {Box, Text} from 'ink';
 import Refs from './Refs';
 import {styleOf} from './tags';
-import {useTitles} from '#/hooks';
+import {useKnown} from '#/hooks';
 import {markOf, MID, PRIORITIES} from '#/services/journal';
 import {highlight, snippet} from '#/services/search';
 import type {Clock} from '#/services/settings';
@@ -58,7 +58,7 @@ const Results = ({
     terms = NONE,
     group = 'day',
 }: Props) => {
-    const titles = useTitles();
+    const titles = useKnown();
     const heading = ({day, priority = MID}: Found) =>
         group === 'day' ? toHeadline(day, today) : PRIORITIES[priority - 1].name;
     const dayWidth = Math.max(0, ...results.map(({day}) => toShortLabel(day).length));

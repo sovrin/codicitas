@@ -293,7 +293,7 @@ describe('store', () => {
 
         assert.deepEqual(
             [...titles('https://acme.atlassian.net')],
-            [['ACME-4217', 'Download times out']],
+            [['ACME-4217', {title: 'Download times out'}]],
         );
         assert.deepEqual([...asked('https://acme.atlassian.net').keys()].toSorted(), [
             'ACME-4217',
@@ -301,16 +301,33 @@ describe('store', () => {
         ]);
 
         saveTitle('https://acme.atlassian.net', 'ACME-4217', 'Download times out on Safari');
-        assert.equal(
-            titles('https://acme.atlassian.net').get('ACME-4217'),
-            'Download times out on Safari',
-        );
+        assert.deepEqual(titles('https://acme.atlassian.net').get('ACME-4217'), {
+            title: 'Download times out on Safari',
+        });
+    });
+
+    it('keeps what else a module made of a reference, and when it asked', () => {
+        saveTitle('github.com', 'sovrin/sonotas#12', 'Fix login', 'passing');
+        saveTitle('github.com', 'sovrin/sonotas#13', null);
+
+        assert.deepEqual(titles('github.com').get('sovrin/sonotas#12'), {
+            title: 'Fix login',
+            status: 'passing',
+        });
+        assert.equal(asked('github.com').get('sovrin/sonotas#13').answer, null);
+        assert.deepEqual(asked('github.com').get('sovrin/sonotas#12').answer, {
+            title: 'Fix login',
+            status: 'passing',
+        });
+
+        saveTitle('github.com', 'sovrin/sonotas#12', 'Fix login', 'merged');
+        assert.equal(titles('github.com').get('sovrin/sonotas#12').status, 'merged');
     });
 
     it('records how far the schema has migrated', () => {
         const db = new DatabaseSync(path(), {readOnly: true});
 
-        assert.deepEqual({...db.prepare('PRAGMA user_version').get()}, {user_version: 6});
+        assert.deepEqual({...db.prepare('PRAGMA user_version').get()}, {user_version: 8});
         db.close();
     });
 
@@ -367,7 +384,7 @@ describe('store', () => {
         assert.deepEqual(loadSettings(), {jiraSite: 'acme.atlassian.net', jira: true});
         assert.deepEqual(
             [...titles('https://acme.atlassian.net')],
-            [['ACME-4217', 'Download times out']],
+            [['ACME-4217', {title: 'Download times out'}]],
         );
 
         close();

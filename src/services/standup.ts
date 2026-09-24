@@ -1,6 +1,6 @@
 import {markOf, type Tag} from './journal';
 import type {Found} from './store';
-import {annotate} from './titles';
+import {annotate, type Known} from './titles';
 
 export type Section = {
     title: string;
@@ -35,7 +35,7 @@ export const standup = (recent: Found[], open: Found[]): Section[] => [
  */
 export const toText = (
     sections: Section[],
-    titles: ReadonlyMap<string, string> = new Map(),
+    titles: ReadonlyMap<string, Known> = new Map(),
 ): string =>
     sections
         .map(({title, entries}) =>

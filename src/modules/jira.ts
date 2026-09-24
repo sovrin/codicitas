@@ -141,6 +141,7 @@ const jira: Module<JiraSettings> = {
     noun: 'ticket',
     description: 'Tickets like PROJ-123 show their title after them, and link to Jira.',
     refused: 'Check the email and token.',
+    unknown: 'Check the tickets exist, and that the account may see their projects.',
     defaults: {jira: false, jiraSite: '', jiraEmail: '', jiraToken: ''},
     settings: [
         define({
@@ -149,6 +150,7 @@ const jira: Module<JiraSettings> = {
             description:
                 'Your Jira, like acme.atlassian.net. Tickets like PROJ-123 then show their title after them.',
             format: (site) => site || 'not set',
+            missing: (site) => !site.trim(),
         }),
         define({
             id: 'jiraEmail',
@@ -162,7 +164,13 @@ const jira: Module<JiraSettings> = {
             label: 'Token',
             description:
                 'An API token from id.atlassian.com, or a personal access token. Kept in the journal; leave it empty to use JIRA_API_TOKEN instead.',
-            format: (token) => (token ? masked(token) : 'not set'),
+            format: (token) =>
+                token
+                    ? masked(token)
+                    : process.env.JIRA_API_TOKEN
+                      ? 'from JIRA_API_TOKEN'
+                      : 'not set',
+            missing: (token) => !token.trim() && !process.env.JIRA_API_TOKEN?.trim(),
             secret: true,
         }),
     ],
@@ -173,7 +181,11 @@ const jira: Module<JiraSettings> = {
         return (
             found && {
                 scope: found.site,
-                title: (key, signal) => title(found, key, signal),
+                lookup: async (key, signal) => {
+                    const summary = await title(found, key, signal);
+
+                    return summary === null ? null : {title: summary};
+                },
                 link: (key) => `${found.site}/browse/${key}`,
             }
         );

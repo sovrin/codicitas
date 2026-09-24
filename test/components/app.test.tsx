@@ -31,6 +31,21 @@ const plain = (frame?: string): string => (frame ?? '').replace(ANSI, '').replac
  */
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 
+const repositories = () => store.loadSettings().githubRepositories;
+
+/**
+ * Waits until the check holds, for what arrives after a round trip or two -
+ * an answer asked for once something is on screen - rather than a fixed time.
+ *
+ * @param check
+ */
+const until = async (check: () => boolean) => {
+    for (let waited = 0; !check() && waited < 2000; waited += 20) {
+        // oxlint-disable-next-line no-await-in-loop
+        await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+};
+
 const type = async (stdin: {write: (data: string) => void}, ...keys: string[]) => {
     for (const key of keys) {
         stdin.write(key);
@@ -795,7 +810,7 @@ describe('App', () => {
             );
 
             await type(first.stdin, 'h', 'r');
-            assert.match(plain(first.lastFrame()), /No tickets on this day/);
+            assert.match(plain(first.lastFrame()), /No tickets or pull requests on this day/);
             first.unmount();
 
             // on, but without a site to ask
@@ -851,26 +866,83 @@ describe('App', () => {
             assert.match(plain(lastFrame()), /Modules › Jira/);
             assert.match(plain(lastFrame()), /▌ Site\s+‹ not set ›/);
             assert.doesNotMatch(plain(lastFrame()), /Enabled/);
+            // what it cannot do without first, apart from the rest
+            assert.match(
+                plain(lastFrame()),
+                /R E Q U I R E D\n\s+▌ Site\s+‹ not set ›\n\s+Token\s+not set\n\n\s+O P T I O N A L\n\s+Email\s+not set/,
+            );
             assert.match(plain(lastFrame()), /Jira needs setting up/);
 
             await type(stdin, '\r', 'acme.atlassian.net', '\r');
             assert.match(plain(lastFrame()), /▌ Site\s+‹ acme\.atlassian\.net ›/);
 
-            await type(stdin, 'j', 'j', '\r', 'ATATT3xFfGF0abcd1234');
+            await type(stdin, 'j', '\r', 'ATATT3xFfGF0abcd1234');
             assert.doesNotMatch(plain(lastFrame()), /ATATT/);
 
             await type(stdin, '\r');
             await settle();
             assert.match(plain(lastFrame()), /▌ Token\s+‹ ••••••••1234 ›/);
-            assert.match(plain(lastFrame()), /Jira answered/);
             assert.equal(store.loadSettings().jiraToken, 'ATATT3xFfGF0abcd1234');
+            // no ticket is on screen here, so nothing is asked yet
+            assert.match(
+                plain(lastFrame()),
+                /Set up; Jira is asked about tickets once they are on screen/,
+            );
+            assert.deepEqual(asked, []);
 
-            // back to the list, and from there to the journal
-            await type(stdin, '\u001b');
+            await type(stdin, '\u001b', '\u001b');
+            await until(() => plain(lastFrame()).includes('(Download times out)'));
+            assert.match(plain(lastFrame()), /shipped ACME-4217 \(Download times out\)/);
+
+            await type(stdin, ',', '\t');
             assert.match(plain(lastFrame()), /▌ Jira\s+‹ on ›\s+working/);
 
-            await type(stdin, '\u001b');
-            assert.match(plain(lastFrame()), /shipped ACME-4217 \(Download times out\)/);
+            await type(stdin, '\r');
+            assert.match(plain(lastFrame()), /Jira answered/);
+        });
+
+        it('asks about the tickets of open todos too, wherever they are', async () => {
+            store.saveSetting('jira', true);
+            store.saveSetting('jiraSite', 'acme.atlassian.net');
+            store.saveSetting('jiraToken', 'secret');
+            store.add(TODAY, {time: '09:00', tag: 'note', text: 'nothing to look up'});
+            store.add('2026-09-18', {time: '09:00', tag: 'todo', text: 'fix ACME-4217'});
+            // a todo ticked off is done
+            store.add('2026-09-18', {time: '10:00', tag: 'done', text: 'fix OPS-7'});
+            store.add('2026-09-18', {time: '11:00', tag: 'note', text: 'read up on OPS-9'});
+
+            render(<App today={TODAY} />);
+
+            await settle();
+            // the ticked off todo and the note wait until they are on screen
+            assert.deepEqual(
+                asked.map((url) => url.replace(/\?.*/, '').split('/').pop()),
+                ['ACME-4217'],
+            );
+        });
+
+        it('asks only about the tickets on screen', async () => {
+            store.saveSetting('jira', true);
+            store.saveSetting('jiraSite', 'acme.atlassian.net');
+            store.saveSetting('jiraToken', 'secret');
+            store.add(TODAY, {time: '09:00', tag: 'done', text: 'shipped ACME-4217'});
+            store.add('2026-09-20', {time: '09:00', tag: 'done', text: 'looked at OPS-9'});
+
+            const {stdin} = render(<App today={TODAY} />);
+
+            await settle();
+            assert.deepEqual(
+                asked.map((url) => url.replace(/\?.*/, '').split('/').pop()),
+                ['ACME-4217'],
+            );
+
+            // the other day, once it is looked at
+            await type(stdin, 'h');
+            await settle();
+            assert.deepEqual(
+                asked.map((url) => url.replace(/\?.*/, '').split('/').pop()),
+                ['ACME-4217', 'OPS-9'],
+            );
         });
 
         it('goes between settings and modules on tab', async () => {
@@ -881,6 +953,170 @@ describe('App', () => {
 
             await type(stdin, '\t');
             assert.match(plain(lastFrame()), /Settings[\s\S]*Show breaks from/);
+        });
+    });
+
+    describe('with GitHub', () => {
+        const original = globalThis.fetch;
+        let asked: unknown[];
+
+        beforeEach(() => {
+            asked = [];
+            globalThis.fetch = (async (_url: string, init: RequestInit) => {
+                const {variables} = JSON.parse(init.body as string);
+
+                asked.push(variables);
+
+                return new Response(
+                    JSON.stringify({
+                        data: {
+                            repository: {
+                                issueOrPullRequest:
+                                    variables.number === 12
+                                        ? {
+                                              __typename: 'PullRequest',
+                                              title: 'Fix login',
+                                              state: 'OPEN',
+                                              commits: {
+                                                  nodes: [
+                                                      {
+                                                          commit: {
+                                                              statusCheckRollup: {state: 'FAILURE'},
+                                                          },
+                                                      },
+                                                  ],
+                                              },
+                                          }
+                                        : null,
+                            },
+                        },
+                    }),
+                    {status: 200},
+                );
+            }) as unknown as typeof fetch;
+        });
+
+        afterEach(() => {
+            globalThis.fetch = original;
+        });
+
+        it('gives short names their repositories on a page of their own', async () => {
+            store.saveSetting('github', true);
+            store.add(TODAY, {time: '09:00', tag: 'done', text: 'merged legacy#15'});
+
+            const {stdin, lastFrame} = render(<App today={TODAY} />);
+
+            await type(stdin, ',', '\t', 'j', '\r');
+            assert.match(plain(lastFrame()), /▌ Repositories\s+‹ none yet ›/);
+
+            await type(stdin, '\r');
+            assert.match(plain(lastFrame()), /Modules › GitHub › Repositories/);
+            // a short name the journal uses is offered, waiting for its repository
+            assert.match(plain(lastFrame()), /▌ legacy\s+not set, used in your journal/);
+
+            await type(stdin, '\r', 'nope', '\r');
+            assert.match(plain(lastFrame()), /That is not a repository/);
+
+            await type(stdin, '\u0015', 'sovrin/sonotas', '\r');
+            assert.deepEqual(repositories(), {legacy: 'sovrin/sonotas'});
+
+            // added from its address, its own name offered as the short name
+            await type(stdin, 'a', 'https://github.com/acme/web-app.git', '\r');
+            assert.match(plain(lastFrame()), /▌ web-app\s+acme\/web-app/);
+
+            await type(stdin, '\r');
+            assert.deepEqual(repositories(), {legacy: 'sovrin/sonotas', 'web-app': 'acme/web-app'});
+
+            // renamed, keeping its repository
+            await type(stdin, '\r', '\r', '\u0015', 'web', '\r');
+            assert.deepEqual(repositories(), {legacy: 'sovrin/sonotas', web: 'acme/web-app'});
+
+            // a short name is given once, whatever its case
+            await type(stdin, 'a', 'x/y', '\r', '\u0015', 'Legacy', '\r');
+            assert.match(plain(lastFrame()), /Legacy is taken already/);
+
+            await type(stdin, '\u001b', 'k', 'd');
+            assert.deepEqual(repositories(), {legacy: 'sovrin/sonotas'});
+
+            await type(stdin, '\u001b');
+            assert.match(plain(lastFrame()), /▌ Repositories\s+‹ legacy → sovrin\/sonotas ›/);
+        });
+
+        it("shows how a pull request's checks stand before it, its title after it", async () => {
+            store.saveSetting('github', true);
+            store.saveSetting('githubRepositories', {legacy: 'sovrin/sonotas'});
+            store.saveSetting('githubToken', 'secret');
+            store.add(TODAY, {
+                time: '09:00',
+                tag: 'todo',
+                text: 'review legacy#12 and legacy#99, not other#3',
+            });
+
+            const {lastFrame} = render(<App today={TODAY} />);
+
+            await settle();
+            assert.match(
+                plain(lastFrame()),
+                /review ✗legacy#12 \(Fix login\) and legacy#99, not other#3/,
+            );
+            // a short name without a repository is not asked about
+            assert.deepEqual(asked, [
+                {owner: 'sovrin', name: 'sonotas', number: 12},
+                {owner: 'sovrin', name: 'sonotas', number: 99},
+            ]);
+
+            const frame = lastFrame();
+
+            assert.ok(
+                frame.includes(
+                    '\u001b]8;;https://github.com/sovrin/sonotas/issues/12\u0007legacy#12\u001b]8;;\u0007',
+                ),
+            );
+            assert.ok(!frame.includes('issues/99'));
+        });
+
+        it('shows as much as it is set to, without asking again', async () => {
+            store.saveSetting('github', true);
+            store.saveSetting('githubRepositories', {legacy: 'sovrin/sonotas'});
+            store.saveSetting('githubToken', 'secret');
+            store.add(TODAY, {time: '09:00', tag: 'todo', text: 'review legacy#12'});
+
+            const {stdin, lastFrame} = render(<App today={TODAY} />);
+
+            await settle();
+            assert.match(plain(lastFrame()), /review ✗legacy#12 \(Fix login\)/);
+            assert.equal(asked.length, 1);
+
+            // titles, then badges, turned off on the GitHub page
+            await type(stdin, ',', '\t', 'j', '\r', 'j', 'j', 'h');
+            assert.match(plain(lastFrame()), /▌ Titles\s+‹ hidden ›/);
+
+            await type(stdin, 'j', 'h');
+            assert.match(plain(lastFrame()), /▌ Badges\s+‹ hidden ›/);
+
+            await type(stdin, '\u001b', '\u001b');
+            await settle();
+            assert.match(plain(lastFrame()), /review legacy#12\s*$/m);
+            assert.equal(asked.length, 1);
+        });
+
+        it('says which pull requests GitHub did not find, and what to check', async () => {
+            store.saveSetting('github', true);
+            store.saveSetting('githubRepositories', {legacy: 'sovrin/sonotas'});
+            store.saveSetting('githubToken', 'secret');
+            store.add(TODAY, {time: '09:00', tag: 'todo', text: 'review legacy#12 and legacy#99'});
+
+            const {stdin, lastFrame} = render(<App today={TODAY} />);
+
+            await settle();
+            await type(stdin, ',', '\t', 'j');
+            assert.match(plain(lastFrame()), /▌ GitHub\s+‹ on ›\s+1 not found/);
+
+            await type(stdin, '\r');
+            assert.match(
+                plain(lastFrame()),
+                /GitHub did not find legacy#99\. GitHub treats a repository/,
+            );
         });
     });
 });

@@ -1,4 +1,4 @@
-import React, {useContext} from 'react';
+import React, {useContext, useEffect} from 'react';
 import {Text} from 'ink';
 import {ModulesContext} from '#/hooks';
 import {type Range, references} from '#/services/references';
@@ -7,7 +7,8 @@ import {hyperlink} from '#/utils';
 type Props = {
     text: string;
     /**
-     * What was added for the reader, like a ticket's title, drawn faded.
+     * What was added for the reader, like a ticket's title, drawn faded, or a
+     * badge, drawn in its colour.
      */
     notes?: Range[];
     bold?: boolean;
@@ -17,8 +18,9 @@ type Props = {
  * Text with its #topics, tickets and @colleagues underlined, the way a
  * terminal shows a link - marked as something to follow, without a colour of
  * its own. A reference a module knows, like a ticket Jira has, is a link to it
- * as well, opened by clicking it in a terminal that can. Notes are faded, so they read as an aside to what
- * was written.
+ * as well, opened by clicking it in a terminal that can. Notes are faded, so
+ * they read as an aside to what was written, unless a module gives one a
+ * colour: then it is drawn in it, like a badge or a merged pull request's title.
  *
  * @param text
  * @param notes
@@ -26,19 +28,28 @@ type Props = {
  * @constructor
  */
 const Refs = ({text, notes, bold}: Props) => {
-    const {links} = useContext(ModulesContext);
+    const {known, show} = useContext(ModulesContext);
+    const parts = references(text, notes);
+    // what this draws is on screen, so the modules may ask about it
+    const drawn = parts
+        .filter(({isReference}) => isReference)
+        .map((part) => part.text)
+        .join('\n');
+
+    useEffect(() => (drawn ? show(drawn.split('\n')) : undefined), [show, drawn]);
 
     return (
         <>
-            {references(text, notes).map((part, at) => (
+            {parts.map((part, at) => (
                 <Text
                     key={at}
                     underline={part.isReference}
-                    dimColor={part.isNote}
+                    dimColor={part.isNote && !part.color}
+                    color={part.color}
                     bold={bold && !part.isNote}
                 >
-                    {part.isReference && links.has(part.text)
-                        ? hyperlink(links.get(part.text), part.text)
+                    {part.isReference && known.get(part.text)?.link
+                        ? hyperlink(known.get(part.text).link, part.text)
                         : part.text}
                 </Text>
             ))}

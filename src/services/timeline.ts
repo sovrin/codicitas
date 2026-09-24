@@ -1,7 +1,7 @@
 import {type Draft, locate, wrap} from './editor';
 import {type Entry, markOf, type Priority, type Tag} from './journal';
 import type {Range} from './references';
-import {annotate, clip} from './titles';
+import {annotate, clip, type Known} from './titles';
 import {toDuration, toMinutes} from '#/utils';
 
 /**
@@ -77,7 +77,7 @@ type Options = {
     /**
      * Titles of the references, shown after them and wrapped with the text.
      */
-    titles?: ReadonlyMap<string, string>;
+    titles?: ReadonlyMap<string, Known>;
 };
 
 const gapRows = (threshold: number, from: string | undefined, to: string, suffix = ''): Row[] => {

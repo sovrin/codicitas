@@ -5,7 +5,7 @@ import Hints from '#/components/Hints';
 import Refs from '#/components/Refs';
 import {bodyRows, contentWidth} from '#/components/layout';
 import {styleOf, TAG_STYLE} from '#/components/tags';
-import {useSize, useStandup, useTitles} from '#/hooks';
+import {useSize, useStandup, useKnown} from '#/hooks';
 import type {ViewProps} from '#/components/App';
 import {copy} from '#/services/clipboard';
 import {wrap} from '#/services/editor';
@@ -42,7 +42,7 @@ const Standup = ({journal, preferences}: ViewProps) => {
     const visible = bodyRows(rows, 1);
     const window = since ?? state.today;
     const width = contentWidth(columns);
-    const titles = useTitles();
+    const titles = useKnown();
 
     // flattened to rows first, so scrolling is by line however long an entry
     const lines: ReactNode[] = sections.flatMap(({title, entries}, at) => [

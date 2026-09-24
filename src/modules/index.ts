@@ -1,18 +1,19 @@
 import type {Definition} from '#/services/definition';
+import github, {type GitHubSettings} from './github';
 import jira, {type JiraSettings} from './jira';
 import type {Module} from './module';
 
 /**
  * Every module's settings, their on/off settings among them.
  */
-export type ModuleSettings = JiraSettings;
+export type ModuleSettings = JiraSettings & GitHubSettings;
 
 /**
  * Every module, in the order they are listed and their titles win
  * when two know the same reference. Each has checked its settings against
  * their own types; listed together, they are only settings.
  */
-export const MODULES = [jira] as unknown as Module[];
+export const MODULES = [jira, github] as unknown as Module[];
 
 /**
  * Every module's settings, its on/off setting first. That one is switched in

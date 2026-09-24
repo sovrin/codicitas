@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
+import {isEntries} from '#/services/definition';
 import {DEFAULTS, GENERAL, normalize, SETTINGS, step} from '#/services/settings';
 
 describe('normalize', () => {
@@ -10,6 +11,18 @@ describe('normalize', () => {
 
     it('drops values a setting does not take, and settings it does not know', () => {
         assert.deepEqual(normalize({gap: 7, tag: 'idea', hints: 'yes', colour: 'pink'}), DEFAULTS);
+    });
+
+    it('takes names given to things as an object of text, and nothing else', () => {
+        const repositories = {legacy: 'sovrin/sonotas'};
+
+        assert.deepEqual(
+            normalize({githubRepositories: repositories}).githubRepositories,
+            repositories,
+        );
+        assert.deepEqual(normalize({githubRepositories: 'legacy'}).githubRepositories, {});
+        assert.deepEqual(normalize({githubRepositories: {legacy: 12}}).githubRepositories, {});
+        assert.deepEqual(normalize({githubRepositories: ['a']}).githubRepositories, {});
     });
 
     it('takes any text for a typed setting, and nothing else', () => {
@@ -45,11 +58,13 @@ describe('step', () => {
 
 describe('SETTINGS', () => {
     it('only offers defaults it allows', () => {
-        for (const {id, values} of SETTINGS) {
+        for (const {id, values, entries} of SETTINGS) {
             assert.ok(
-                values
-                    ? (values as unknown[]).includes(DEFAULTS[id])
-                    : typeof DEFAULTS[id] === 'string',
+                entries
+                    ? isEntries(DEFAULTS[id])
+                    : values
+                      ? (values as unknown[]).includes(DEFAULTS[id])
+                      : typeof DEFAULTS[id] === 'string',
                 id,
             );
         }
@@ -62,7 +77,18 @@ describe('SETTINGS', () => {
         assert.ok(!general.has('jiraSite'));
         assert.deepEqual(
             SETTINGS.map(({id}) => id).filter((id) => !general.has(id)),
-            ['jira', 'jiraSite', 'jiraEmail', 'jiraToken'],
+            [
+                'jira',
+                'jiraSite',
+                'jiraEmail',
+                'jiraToken',
+                'github',
+                'githubRepositories',
+                'githubToken',
+                'githubTitles',
+                'githubBadges',
+                'githubPoll',
+            ],
         );
     });
 

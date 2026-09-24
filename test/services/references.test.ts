@@ -3,6 +3,7 @@ import {describe, it} from 'node:test';
 import {
     firstPerson,
     firstReference,
+    isNumbered,
     isTicket,
     mentionsIn,
     references,
@@ -21,6 +22,28 @@ describe('references', () => {
             '#412',
             'PROJ-123',
             'OPS2-7',
+        ]);
+    });
+
+    it("finds a repository's pull requests by its short name", () => {
+        assert.deepEqual(marked('merged legacy#12, then web-app#3 and api.v2#40.'), [
+            'legacy#12',
+            'web-app#3',
+            'api.v2#40',
+        ]);
+    });
+
+    it('leaves the anchors of links and addresses as text', () => {
+        assert.deepEqual(
+            marked('see example.com/page#12, a.b#12 is fine, me@legacy#12 and legacy#12a'),
+            ['a.b#12'],
+        );
+    });
+
+    it('draws a note in its own colour', () => {
+        assert.deepEqual(references('✓legacy#12', [{start: 0, end: 1, color: 'green'}]), [
+            {text: '✓', isReference: false, isNote: true, color: 'green'},
+            {text: 'legacy#12', isReference: true},
         ]);
     });
 
@@ -125,5 +148,13 @@ describe('topicsIn', () => {
             '#412',
         ]);
         assert.deepEqual(topicsIn('nothing here'), []);
+    });
+});
+
+describe('isNumbered', () => {
+    it("tells a repository's pull requests from other topics", () => {
+        assert.equal(isNumbered('legacy#12'), true);
+        assert.equal(isNumbered('#12'), false);
+        assert.equal(isNumbered('ACME-12'), false);
     });
 });

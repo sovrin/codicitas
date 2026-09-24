@@ -190,7 +190,7 @@ describe('layout with ticket titles', () => {
         const rows = layout({
             entries: [{id: 1, time: '09:00', tag: 'done', text: 'shipped ACME-4217 today'}],
             width: 30,
-            titles: new Map([['ACME-4217', 'Download times out']]),
+            titles: new Map([['ACME-4217', {title: 'Download times out'}]]),
         }).filter((row) => row.kind === 'entry');
 
         assert.deepEqual(

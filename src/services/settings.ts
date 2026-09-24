@@ -1,5 +1,5 @@
 import {defaults, definitions, type ModuleSettings} from '#/modules';
-import {type Definition, definer} from './definition';
+import {type Definition, definer, isEntries} from './definition';
 import {type Tag, TAGS} from './journal';
 
 export type WeekStart = 'monday' | 'sunday';
@@ -129,9 +129,17 @@ export const SETTINGS: Definition<Settings>[] = [...GENERAL, ...definitions<Sett
 export const normalize = (stored: Record<string, unknown> = {}): Settings => {
     const settings: Record<string, unknown> = {...DEFAULTS};
 
-    for (const {id, values} of SETTINGS) {
-        if (values ? (values as unknown[]).includes(stored[id]) : typeof stored[id] === 'string') {
-            settings[id] = stored[id];
+    for (const {id, values, entries} of SETTINGS) {
+        const value = stored[id];
+
+        if (
+            entries
+                ? isEntries(value)
+                : values
+                  ? (values as unknown[]).includes(value)
+                  : typeof value === 'string'
+        ) {
+            settings[id] = value;
         }
     }
 

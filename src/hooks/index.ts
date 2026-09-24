@@ -11,5 +11,5 @@ export {
     default as useModules,
     ModulesContext,
     type Running,
-    useTitles,
+    useKnown,
 } from './useModules';
