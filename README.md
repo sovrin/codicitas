@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.svg" width="96" alt="">
+</p>
+
 <h1 align="center">codicitas</h1>
 
 <p align="center">

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <title>codicitas</title>
+  <rect x="2" y="2" width="124" height="124" rx="28" fill="#1e1e2e" stroke="#313244" stroke-width="2"/>
+  <path d="M80.8 38.7 A 34 34 0 1 0 80.8 89.3" fill="none" stroke="#cdd6f4" stroke-width="15" stroke-linecap="round"/>
+  <circle cx="92" cy="64" r="11" fill="#f9e2af"/>
+</svg>
