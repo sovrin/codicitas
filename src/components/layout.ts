@@ -31,6 +31,14 @@ export const bodyRows = (rows: number, footer: number): number =>
 export const contentWidth = (columns: number): number => Math.max(20, columns - 2 * PAD_X);
 
 /**
+ * Whether the terminal is too narrow for the week in three letters, and names
+ * it in one instead.
+ *
+ * @param columns
+ */
+export const isNarrow = (columns: number): boolean => columns < 100;
+
+/**
  * Selection bar and space, time, space, glyph on the rail, space. The time is
  * wider on a 12 hour clock, and the rail moves over with it.
  *

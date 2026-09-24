@@ -5,7 +5,7 @@ import Frame from '#/components/Frame';
 import Summary from '#/components/Summary';
 import Timeline from '#/components/Timeline';
 import {WeekMarks, WeekNames} from '#/components/Week';
-import {bodyRows, contentWidth, textWidth} from '#/components/layout';
+import {bodyRows, contentWidth, isNarrow, textWidth} from '#/components/layout';
 import {ModulesContext, useMentions, useNow, useSize} from '#/hooks';
 import type {Outcome} from '#/hooks/useModules';
 import {MODULES} from '#/modules';
@@ -89,6 +89,7 @@ const Journal = ({journal, preferences}: ViewProps) => {
     const suggestion = suggestions[pick];
     const width = textWidth(columns, settings.clock);
     const visible = bodyRows(rows, 1);
+    const narrow = isNarrow(columns);
 
     // a paste is text, never a string of commands: it lands in the prompt, and
     // opens one when there is none, newlines and all
@@ -417,8 +418,10 @@ const Journal = ({journal, preferences}: ViewProps) => {
         <Frame
             title={<Text bold>{toHeadline(day, today)}</Text>}
             subtitle={<Summary entries={entries} />}
-            aside={<WeekNames day={day} days={days} start={settings.weekStart} />}
-            subaside={<WeekMarks day={day} days={days} start={settings.weekStart} />}
+            aside={<WeekNames day={day} days={days} start={settings.weekStart} narrow={narrow} />}
+            subaside={
+                <WeekMarks day={day} days={days} start={settings.weekStart} narrow={narrow} />
+            }
             status={
                 <Status
                     mode={mode}

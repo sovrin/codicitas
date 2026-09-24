@@ -112,6 +112,16 @@ const type = async (stdin: {write: (data: string) => void}, ...keys: string[]) =
     }
 };
 
+/**
+ * How wide the app thinks the terminal is. The tests have none, so it falls
+ * back to 80; ink-testing-library draws 100 wide.
+ *
+ * @param columns
+ */
+const resize = (columns?: number) => {
+    Object.defineProperty(process.stdout, 'columns', {value: columns, configurable: true});
+};
+
 describe('App', () => {
     let root: string;
 
@@ -125,11 +135,14 @@ describe('App', () => {
         // keeps reading stdin, which would hang the whole run
         cleanup();
         store.close();
+        resize(undefined);
         delete process.env.CODICITAS_DIR;
         rmSync(root, {recursive: true, force: true});
     });
 
     it('opens on today, the rail ending at now with an invitation to write', () => {
+        resize(100);
+
         const {lastFrame, unmount} = render(<App today={TODAY} />);
         const frame = plain(lastFrame());
 
@@ -143,6 +156,17 @@ describe('App', () => {
         const dots = [...marks.matchAll(/[·●◉]/g)].map((mark) => mark.index);
         assert.deepEqual(dots, middles);
         assert.match(frame, /\d\d:\d\d ● now\s+i to write the first entry of the day/);
+        unmount();
+    });
+
+    it('names the week in one letter where the terminal is narrow', () => {
+        resize(99);
+
+        const {lastFrame, unmount} = render(<App today={TODAY} />);
+        const frame = plain(lastFrame());
+
+        assert.match(frame, /Thursday 24 September\s+m t w t f s s\n/);
+        assert.match(frame, /nothing written yet\s+· · · ◉ · · ·\n/);
         unmount();
     });
 
@@ -488,13 +512,13 @@ describe('App', () => {
         frame = plain(first.lastFrame());
 
         assert.doesNotMatch(frame, /┆/);
-        assert.match(frame, /sun mon tue wed thu fri sat/);
+        assert.match(frame, /s m t w t f s\n/);
         first.unmount();
         store.close();
 
         const second = render(<App today={TODAY} />);
 
-        assert.match(plain(second.lastFrame()), /sun mon tue wed thu fri sat/);
+        assert.match(plain(second.lastFrame()), /s m t w t f s\n/);
         assert.doesNotMatch(plain(second.lastFrame()), /┆/);
         second.unmount();
     });
