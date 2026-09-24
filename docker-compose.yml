@@ -1,0 +1,13 @@
+# Records the demo GIF into demo/demo.gif, as often as it takes:
+#
+#   docker compose run --rm demo
+#
+# demo/ is mounted, so the tape, seed and mocks can be changed without a
+# rebuild; a change to codicitas itself needs one: add --build.
+services:
+  demo:
+    build:
+      context: .
+      dockerfile: demo/Dockerfile
+    volumes:
+      - ./demo:/codicitas/demo

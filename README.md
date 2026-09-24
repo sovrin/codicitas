@@ -2,6 +2,8 @@
 
 A journal for your working day, in the terminal. Write down what you did, what's next and what's in your way as it happens, and get your standup, a prioritised backlog and a searchable history for free.
 
+![codicitas: a day in the journal, with titles and checks from Jira and GitHub](demo/demo.gif)
+
 The day runs down a single line. Breaks of half an hour or more show how long they were, and on today the line ends at **now**, with the time since your last entry just above it, so a quiet stretch is hard to miss.
 
 ## Install
@@ -171,6 +173,15 @@ npm run typecheck
 npm run lint
 npm run build       # bundle to dist/
 ```
+
+The demo above is recorded with [VHS](https://github.com/charmbracelet/vhs) in Docker, against a journal filled by `demo/seed.ts` and stand-ins for Jira and GitHub in `demo/mock.mjs`, so it needs no accounts:
+
+```bash
+docker compose run --rm demo           # writes demo/demo.gif
+docker compose run --build --rm demo   # after changing codicitas itself
+```
+
+The script is `demo/demo.tape`; the tape, seed and mocks are mounted, so changing them needs no rebuild.
 
 The code is split into `src/services` (journal logic, storage, text editing, parsing; plain functions with their own tests), `src/modules` (integrations like Jira, each with its settings and a way to look up titles), `src/views` (one component per screen) and `src/components` (the pieces they share). CI runs typecheck, lint, tests and the build on Node 24 and 26.
 
