@@ -21,18 +21,35 @@ import {toClock, toHeadline} from '#/utils';
 const plural = (count: number, word: string): string => `${count} ${word}${count === 1 ? '' : 's'}`;
 
 /**
- * What refreshing one module's references came to, said in the status row.
+ * What refreshing the modules' references came to, said in the status row:
+ * what was refreshed in one go, 1 ticket and 3 pull requests, and what went
+ * wrong after it.
  *
- * @param module
- * @param outcome
+ * @param outcomes each module's, undefined for one that was not asked
  */
-const refreshed = ({name, noun}: Module, {result, found, missing}: Outcome): string | undefined =>
-    ({
-        done: `Refreshed ${plural(found, noun)}${missing > 0 ? `, ${missing} not in ${name}` : ''}`,
-        refused: `${name} turned the token down; check it under modules`,
-        unreachable: `${name} could not be reached`,
-        dropped: undefined,
-    })[result];
+const refreshed = (outcomes: [Module, Outcome | undefined][]): string => {
+    const done = outcomes
+        .filter(([, outcome]) => outcome?.result === 'done')
+        .map(
+            ([{name, noun}, {found, missing}]) =>
+                `${plural(found, noun)}${missing > 0 ? `, ${missing} not in ${name}` : ''}`,
+        );
+    const failed = outcomes.flatMap(([{name}, outcome]) =>
+        outcome?.result === 'refused'
+            ? [`${name} turned the token down; check it under modules`]
+            : outcome?.result === 'unreachable'
+              ? [`${name} could not be reached`]
+              : [],
+    );
+
+    return [
+        // a module's own count with its misses is kept apart from the next
+        ...(done.length > 0
+            ? [`Refreshed ${done.join(done.some((part) => part.includes(',')) ? '; ' : ' and ')}`]
+            : []),
+        ...failed,
+    ].join('; ');
+};
 
 /**
  * What every module calls its references, for saying there are none.
@@ -342,10 +359,13 @@ const Journal = ({journal, preferences}: ViewProps) => {
                 });
                 void Promise.all(
                     asking.map(({module, keys, refresh}) =>
-                        refresh(keys).then((outcome) => outcome && refreshed(module, outcome)),
+                        refresh(keys).then((outcome): [Module, Outcome | undefined] => [
+                            module,
+                            outcome,
+                        ]),
                     ),
-                ).then((notices) => {
-                    const notice = notices.filter(Boolean).join('; ');
+                ).then((outcomes) => {
+                    const notice = refreshed(outcomes);
 
                     if (notice) {
                         dispatch({type: 'notice', text: notice});
