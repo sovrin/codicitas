@@ -60,7 +60,7 @@ Press <kbd>i</kbd> and write where the day has got to. <kbd>enter</kbd> saves.
 | `@10:30`   | when it happened, for writing it down after the fact: `@22:30`, `@10:30pm` and `@9am` work too                         |
 | `api#1502` | a reference. `#topics`, `#412`, `PROJ-123`, pull requests like `legacy#12` and `@colleagues` are underlined            |
 
-The parts combine in any order. Entries are sorted by time, so one written down late still lands where it happened. Colour only appears where something needs you: yellow for open todos and now, red for what's blocking you, green for what's done. Critical todos show `!!`, high ones `!`, and low ones a grey circle.
+The parts go at the start, in any order, each at most once; from the first word that is none of them on, the rest is text, so `ship >fri` stays as written. Entries are sorted by time, so one written down late still lands where it happened. Colour only appears where something needs you: yellow for open todos and now, red for what's blocking you, green for what's done. Critical todos show `!!`, high ones `!`, and low ones a grey circle.
 
 A todo with a due date says so in front of its text, counted from today: `due fri`, `due 9 Oct`, yellow on the day as `due today`, and red once it has passed, as `3d overdue`. A weekday is the coming one, next week's on the day itself, and a date without a year is the next one. Once the todo is done, its due date no longer shows.
 
