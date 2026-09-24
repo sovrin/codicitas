@@ -1230,6 +1230,33 @@ describe('App', () => {
             }
         });
 
+        it('counts what Jira and GitHub refreshed together, and says what each did not find', async () => {
+            const github = globalThis.fetch;
+
+            globalThis.fetch = (async (url: string, init: RequestInit) =>
+                url.includes('atlassian')
+                    ? new Response('{}', {status: 404})
+                    : github(url, init)) as unknown as typeof fetch;
+            store.saveSetting('jira', true);
+            store.saveSetting('jiraSite', 'acme.atlassian.net');
+            store.saveSetting('jiraToken', 'secret');
+            store.saveSetting('github', true);
+            store.saveSetting('githubRepositories', {legacy: 'sovrin/sonotas'});
+            store.saveSetting('githubToken', 'secret');
+            store.add(TODAY, {
+                time: '09:00',
+                tag: 'done',
+                text: 'shipped ACME-4217, legacy#12, legacy#13 and legacy#14',
+            });
+
+            const {stdin, lastFrame} = render(<App today={TODAY} />);
+
+            await settle();
+            await type(stdin, 'r');
+            await until(() => plain(lastFrame()).includes('Refreshed'));
+            assert.match(plain(lastFrame()), /Refreshed 3 references, 1 not in Jira/);
+        });
+
         it('says which pull requests GitHub did not find, and what to check', async () => {
             store.saveSetting('github', true);
             store.saveSetting('githubRepositories', {legacy: 'sovrin/sonotas'});
