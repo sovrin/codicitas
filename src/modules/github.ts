@@ -1,7 +1,7 @@
 import {definer} from '#/services/definition';
 import {isNumbered} from '#/services/references';
 import {masked} from '#/utils';
-import {type Answer, type Badge, type Module, Refused, type Settled} from './module';
+import {type Answer, type Badge, type Check, type Module, Refused, type Settled} from './module';
 import {template} from './templates';
 
 /**
@@ -195,22 +195,29 @@ export const statusOf = ({__typename, state, commits}: Found): string => {
     );
 };
 
+type Reply<T> = {
+    data?: T;
+    errors?: {type?: string; path?: (string | number)[]}[];
+};
+
 /**
- * A pull request's or issue's title and how it stands, or null when GitHub
- * has no such thing - or none this token may see, which GitHub does not tell
- * apart.
+ * Asks GitHub's GraphQL API, signed in. A token turned down throws Refused -
+ * a spent rate limit is waited out, anything else forbidden is the token -
+ * and whatever else went wrong an Error.
  *
  * @param github
- * @param key like sovrin/sonotas#12
+ * @param query
+ * @param variables
  * @param signal
- * @param request fetch, or a stand-in for tests
+ * @param request
  */
-export const lookup = async (
+const post = async <T>(
     {token}: GitHub,
-    key: string,
-    signal?: AbortSignal,
-    request: typeof fetch = fetch,
-): Promise<Answer | null> => {
+    query: string,
+    variables: Record<string, unknown>,
+    signal: AbortSignal | undefined,
+    request: typeof fetch,
+): Promise<Reply<T>> => {
     const response = await request(API, {
         method: 'POST',
         headers: {
@@ -218,13 +225,12 @@ export const lookup = async (
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({query: QUERY, variables: partsOf(key)}),
+        body: JSON.stringify({query, variables}),
         signal: signal
             ? AbortSignal.any([signal, AbortSignal.timeout(TIMEOUT)])
             : AbortSignal.timeout(TIMEOUT),
     });
 
-    // a spent rate limit is waited out, anything else forbidden is the token
     if (
         response.status === 401 ||
         (response.status === 403 && response.headers.get('x-ratelimit-remaining') !== '0')
@@ -236,10 +242,28 @@ export const lookup = async (
         throw new Error(`GitHub answered ${response.status}`);
     }
 
-    const {data, errors = []} = (await response.json()) as {
-        data?: {repository: {issueOrPullRequest: Found | null} | null};
-        errors?: {type?: string; path?: (string | number)[]}[];
-    };
+    return (await response.json()) as Reply<T>;
+};
+
+/**
+ * A pull request's or issue's title and how it stands, or null when GitHub
+ * has no such thing - or none this token may see, which GitHub does not tell
+ * apart.
+ *
+ * @param github
+ * @param key like sovrin/sonotas#12
+ * @param signal
+ * @param request fetch, or a stand-in for tests
+ */
+export const lookup = async (
+    github: GitHub,
+    key: string,
+    signal?: AbortSignal,
+    request: typeof fetch = fetch,
+): Promise<Answer | null> => {
+    const {data, errors = []} = await post<{
+        repository: {issueOrPullRequest: Found | null} | null;
+    }>(github, QUERY, partsOf(key), signal, request);
     const found = data?.repository?.issueOrPullRequest;
     // a fine-grained token has no permission for checks: GitHub answers
     // everything else and leaves the checks out, saying so
@@ -262,6 +286,76 @@ export const lookup = async (
     }
 
     return null;
+};
+
+/**
+ * Who the token belongs to, and each repository asked about by whether the
+ * token may see it, all in one question.
+ *
+ * @param count how many repositories
+ */
+const checkQuery = (count: number): string => {
+    const indices = Array.from({length: count}, (_, index) => index);
+    const variables = indices.map((index) => `$o${index}: String!, $n${index}: String!`);
+    const fields = indices.map(
+        (index) => `  r${index}: repository(owner: $o${index}, name: $n${index}) { id }`,
+    );
+
+    return `query${count > 0 ? ` (${variables.join(', ')})` : ''} {
+  viewer { login }
+${fields.join('\n')}
+}`;
+};
+
+/**
+ * Who the token belongs to, and the repositories it was set up with that the
+ * token cannot see - GitHub does not tell those apart from ones that are not
+ * there.
+ *
+ * @param github
+ * @param signal
+ * @param request fetch, or a stand-in for tests
+ */
+export const check = async (
+    github: GitHub,
+    signal?: AbortSignal,
+    request: typeof fetch = fetch,
+): Promise<Check> => {
+    // one repository under two short names is asked about once, as first
+    // written; GitHub tells repositories apart regardless of case
+    const repositories = [...github.repositories.values()].filter(
+        ({owner, name}, index, all) =>
+            all.findIndex(
+                (other) =>
+                    `${other.owner}/${other.name}`.toLowerCase() ===
+                    `${owner}/${name}`.toLowerCase(),
+            ) === index,
+    );
+    const variables = Object.fromEntries(
+        repositories.flatMap(({owner, name}, index) => [
+            [`o${index}`, owner],
+            [`n${index}`, name],
+        ]),
+    );
+    const {data, errors = []} = await post<Record<string, {login?: string; id?: string} | null>>(
+        github,
+        checkQuery(repositories.length),
+        variables,
+        signal,
+        request,
+    );
+    const login = data?.viewer?.login;
+
+    if (!login || errors.some(({type}) => type !== 'NOT_FOUND' && type !== 'FORBIDDEN')) {
+        throw new Error('GitHub could not answer');
+    }
+
+    return {
+        account: login,
+        unseen: repositories
+            .filter((_, index) => !data[`r${index}`])
+            .map(({owner, name}) => `${owner}/${name}`),
+    };
 };
 
 const MINUTE = 60_000;
@@ -472,6 +566,7 @@ const github: Module<GitHubSettings> = {
                 scope: 'github.com',
                 resolve: (reference) => resolve(found, reference),
                 lookup: (key, signal) => lookup(found, key, signal),
+                check: (signal) => check(found, signal),
                 link: (key) => {
                     const {owner, name, number} = partsOf(key);
 

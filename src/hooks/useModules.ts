@@ -1,6 +1,6 @@
 import {createContext, useCallback, useContext, useEffect, useMemo, useRef, useState} from 'react';
 import {MODULES} from '#/modules';
-import {type Answer, type Module, Refused, type Source} from '#/modules/module';
+import {type Answer, type Check, type Module, Refused, type Source} from '#/modules/module';
 import {topicsIn} from '#/services/references';
 import type {Settings} from '#/services/settings';
 import * as store from '#/services/store';
@@ -8,10 +8,10 @@ import type {Templates} from '#/services/template';
 import {due, type Known} from '#/services/titles';
 
 /**
- * How asking a module last went: not set up, nothing answered yet, answered,
- * turned the token down, or out of reach.
+ * How asking a module last went: not set up, nothing answered yet, checking
+ * the sign in, answered, turned the token down, or out of reach.
  */
-export type Connection = 'off' | 'waiting' | 'ok' | 'refused' | 'unreachable';
+export type Connection = 'off' | 'waiting' | 'checking' | 'ok' | 'refused' | 'unreachable';
 
 /**
  * How a round of questions ended, and how many references the module knew.
@@ -45,10 +45,19 @@ export type Running = {
     missing: string[];
     connection: Connection;
     /**
+     * What the last check of the sign in found, until the setup changes.
+     */
+    signin?: Check;
+    /**
      * Asks about these references now, however recently it was asked;
      * undefined while the module is not ready.
      */
     refresh: (references: string[]) => Promise<Outcome | undefined>;
+    /**
+     * Checks the sign in now, whether or not anything was written that the
+     * module could be asked about.
+     */
+    check: () => Promise<void>;
 };
 
 export type Modules = {
@@ -198,12 +207,15 @@ const keysOf = (source: Source, references: string[]): string[] => [
  * @param revision asked again whenever this changes, for references just written
  * @param wanted the references to ask about, as written: those on screen,
  * and those of the todos still open
+ * @param checking whether to check the sign in, once and again whenever the
+ * setup changes
  */
 const useModule = (
     module: Module,
     settings: Settings,
     revision: number,
     wanted: ReadonlySet<string>,
+    checking: boolean,
 ): Running => {
     const enabled = settings[module.id as keyof Settings] === true;
     // what the module is set up from, so it is only set up again when that
@@ -232,6 +244,7 @@ const useModule = (
         source ? answers(source.scope) : new Map(),
     );
     const [connection, setConnection] = useState<Connection>(source ? 'waiting' : 'off');
+    const [signin, setSignin] = useState<Check>();
     const [tick, setTick] = useState(0);
     const signal = useRef<AbortSignal>(undefined);
     const pending = useRef(new Set<string>());
@@ -244,6 +257,7 @@ const useModule = (
         setPrevious(source);
         setStored(source ? answers(source.scope) : new Map());
         setConnection(source ? 'waiting' : 'off');
+        setSignin(undefined);
     }
 
     // whatever was still being asked with the old setup is dropped
@@ -338,6 +352,45 @@ const useModule = (
         [source, run],
     );
 
+    const check = useCallback(async () => {
+        const current = signal.current;
+
+        if (!source || !current || current.aborted) {
+            return;
+        }
+
+        setConnection('checking');
+
+        try {
+            const found = await source.check(current);
+
+            if (current.aborted) {
+                return;
+            }
+
+            // signed in, so whatever was waited out can be asked again
+            paused.current = 0;
+            setSignin(found);
+            setConnection('ok');
+        } catch (reason) {
+            if (current.aborted) {
+                return;
+            }
+
+            const refused = reason instanceof Refused;
+
+            paused.current = refused ? Infinity : Date.now() + PAUSE;
+            setSignin(undefined);
+            setConnection(refused ? 'refused' : 'unreachable');
+        }
+    }, [source]);
+
+    useEffect(() => {
+        if (checking) {
+            void check();
+        }
+    }, [checking, check]);
+
     const titled = module.titles?.(settings) ?? true;
     const templates = useMemo(() => templatesOf(module, settings), [module, settings]);
     const {known, missing} = useMemo(() => {
@@ -370,8 +423,18 @@ const useModule = (
     }, [module, settings, titled, templates, source, references, stored]);
 
     return useMemo(
-        () => ({module, enabled, ready: !!source, known, missing, connection, refresh}),
-        [module, enabled, source, known, missing, connection, refresh],
+        () => ({
+            module,
+            enabled,
+            ready: !!source,
+            known,
+            missing,
+            connection,
+            signin,
+            refresh,
+            check,
+        }),
+        [module, enabled, source, known, missing, connection, signin, refresh, check],
     );
 };
 
@@ -380,8 +443,10 @@ const useModule = (
  *
  * @param settings
  * @param revision
+ * @param checking whether the sign ins are checked, as while the modules are
+ * on screen: once, and again whenever a module's setup changes
  */
-const useModules = (settings: Settings, revision: number): Modules => {
+const useModules = (settings: Settings, revision: number, checking = false): Modules => {
     // how many places on screen show each reference
     const shown = useRef(new Map<string, number>());
     const [visible, setVisible] = useState<ReadonlySet<string>>(() => new Set());
@@ -434,8 +499,10 @@ const useModules = (settings: Settings, revision: number): Modules => {
 
     // the modules are fixed when codi is built, so every render calls the
     // same hooks in the same order
-    // oxlint-disable-next-line react/rules-of-hooks
-    const modules = MODULES.map((module) => useModule(module, settings, revision, wanted));
+    const modules = MODULES.map((module) =>
+        // oxlint-disable-next-line react/rules-of-hooks
+        useModule(module, settings, revision, wanted, checking),
+    );
 
     return {
         modules,

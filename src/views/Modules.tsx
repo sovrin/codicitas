@@ -18,13 +18,20 @@ const HINTS: [string, string][] = [
     ['esc', 'back'],
 ];
 
-const ON: [string, string][] = [...HINTS.slice(0, 2), ['enter', 'set up'], ...HINTS.slice(2)];
+const ON: [string, string][] = [
+    ...HINTS.slice(0, 2),
+    ['enter', 'set up'],
+    ['r', 'check'],
+    ...HINTS.slice(2),
+];
 
 const SETUP: [string, string][] = [
     ['↑↓', 'choose'],
     ['←→', 'change'],
     ['esc', 'modules'],
 ];
+
+const READY: [string, string][] = [...SETUP.slice(0, 2), ['r', 'check'], ...SETUP.slice(2)];
 
 const WIDTH = Math.max(...MODULES.map(({name}) => name.length)) + 4;
 
@@ -34,11 +41,23 @@ const WIDTH = Math.max(...MODULES.map(({name}) => name.length)) + 4;
  *
  * @param running
  */
-const said = ({module, ready, connection, missing}: Running): Said | undefined => {
+const said = ({module, ready, connection, missing, signin}: Running): Said | undefined => {
     const {name, noun, refused, unknown} = module;
 
     if (!ready) {
         return {text: `${name} needs setting up before it can be asked.`, color: 'yellow'};
+    }
+
+    if (connection === 'checking') {
+        return {text: `Asking ${name} who the token belongs to…`};
+    }
+
+    // what it was set up with and cannot see explains what it will not find
+    if (connection === 'ok' && signin && signin.unseen.length > 0) {
+        return {
+            text: `Signed in to ${name} as ${signin.account}, who cannot see ${listed(signin.unseen)}.`,
+            color: 'yellow',
+        };
     }
 
     // answered, but not about everything - the likeliest thing to be wrong
@@ -52,7 +71,9 @@ const said = ({module, ready, connection, missing}: Running): Said | undefined =
     return (
         {
             waiting: {text: `Set up; ${name} is asked about ${noun}s once they are on screen.`},
-            ok: {text: `${name} answered; titles show after their ${noun}s.`, color: 'green'},
+            ok: signin
+                ? {text: `Signed in to ${name} as ${signin.account}.`, color: 'green'}
+                : {text: `${name} answered; titles show after their ${noun}s.`, color: 'green'},
             refused: {text: `${name} turned the token down. ${refused}`, color: 'red'},
             unreachable: {
                 text: `${name} could not be reached. Trying again in a few minutes.`,
@@ -63,22 +84,44 @@ const said = ({module, ready, connection, missing}: Running): Said | undefined =
 };
 
 /**
+ * A few names in a sentence: "a", "a and b", "a, b and 2 more".
+ *
+ * @param names
+ */
+const listed = (names: string[]): string =>
+    names.length > 3
+        ? `${names.slice(0, 2).join(', ')} and ${names.length - 2} more`
+        : names.length > 1
+          ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
+          : names.join('');
+
+/**
  * The same, in a word or two, for the list of modules.
  *
  * @param running
  */
-const brief = ({ready, connection, missing}: Running): Said | undefined =>
-    ready && missing.length > 0 && connection !== 'refused' && connection !== 'unreachable'
-        ? {text: `${missing.length} not found`, color: 'yellow'}
-        : ready
-          ? (
-                {
-                    ok: {text: 'working', color: 'green'},
-                    refused: {text: 'token turned down', color: 'red'},
-                    unreachable: {text: 'out of reach', color: 'yellow'},
-                } as Partial<Record<Running['connection'], Said>>
-            )[connection]
-          : {text: 'not set up', color: 'yellow'};
+const brief = ({ready, connection, missing, signin}: Running): Said | undefined => {
+    if (!ready) {
+        return {text: 'not set up', color: 'yellow'};
+    }
+
+    if (connection === 'ok' && signin && signin.unseen.length > 0) {
+        return {text: `cannot see ${signin.unseen.length}`, color: 'yellow'};
+    }
+
+    if (missing.length > 0 && connection !== 'refused' && connection !== 'unreachable') {
+        return {text: `${missing.length} not found`, color: 'yellow'};
+    }
+
+    return (
+        {
+            checking: {text: 'checking…'},
+            ok: {text: signin ? `working, as ${signin.account}` : 'working', color: 'green'},
+            refused: {text: 'token turned down', color: 'red'},
+            unreachable: {text: 'out of reach', color: 'yellow'},
+        } as Partial<Record<Running['connection'], Said>>
+    )[connection];
+};
 
 type ListProps = ViewProps & {
     selected: number;
@@ -108,6 +151,8 @@ const List = ({journal, preferences, selected, onSelect, onOpen}: ListProps) => 
             dispatch({type: 'view', view: 'settings'});
         } else if (input === 'q' || (key.ctrl && input === 'd')) {
             exit();
+        } else if (input === 'r') {
+            modules.forEach(({ready, check}) => ready && void check());
         } else if (key.return) {
             if (isOn) {
                 onOpen(module);
@@ -220,13 +265,15 @@ const Modules = (props: ViewProps) => {
             definitions={open.settings as Definition<Settings>[]}
             preferences={props.preferences}
             status={running && said(running)}
-            hints={SETUP}
+            hints={running?.ready ? READY : SETUP}
             topics={topic}
             onKey={(input, key) => {
                 if (key.escape) {
                     setOpen(undefined);
                 } else if (input === 'q' || (key.ctrl && input === 'd')) {
                     exit();
+                } else if (input === 'r' && running?.ready) {
+                    void running.check();
                 } else {
                     return false;
                 }

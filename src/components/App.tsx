@@ -45,7 +45,11 @@ const App = ({today}: Props) => {
     const now = useNow();
     const journal = useJournal(today ?? toKey(now));
     const preferences = useSettings();
-    const modules = useModules(preferences.settings, journal.revision);
+    const modules = useModules(
+        preferences.settings,
+        journal.revision,
+        journal.state.view === 'modules',
+    );
     const Current = VIEWS[journal.state.view];
 
     return (

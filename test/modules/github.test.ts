@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 import github, {
     aliasesIn,
+    check,
     githubOf,
     lookup,
     repositoriesOf,
@@ -203,6 +204,43 @@ describe('lookup', () => {
         );
         await assert.rejects(
             lookup(GITHUB, 'a/b#1', undefined, answer(200, {errors: [{type: 'INTERNAL'}]}).request),
+            (reason) => !(reason instanceof Refused),
+        );
+    });
+});
+
+describe('check', () => {
+    const TWO = {
+        repositories: new Map([
+            ['legacy', {owner: 'sovrin', name: 'sonotas'}],
+            ['old', {owner: 'Sovrin', name: 'Sonotas'}],
+            ['api', {owner: 'acme', name: 'api'}],
+        ]),
+        token: 'secret',
+    };
+
+    it('asks who the token belongs to and whether it sees each repository, once each', async () => {
+        const {calls, request} = answer(200, {
+            data: {viewer: {login: 'ada'}, r0: {id: '1'}, r1: null},
+            errors: [{type: 'NOT_FOUND', path: ['r1']}],
+        });
+
+        assert.deepEqual(await check(TWO, undefined, request), {
+            account: 'ada',
+            unseen: ['acme/api'],
+        });
+
+        const {query, variables} = JSON.parse(calls[0].init.body as string);
+
+        assert.match(query, /viewer \{ login \}/);
+        // sovrin/sonotas under two short names is asked about once
+        assert.deepEqual(variables, {o0: 'sovrin', n0: 'sonotas', o1: 'acme', n1: 'api'});
+    });
+
+    it('tells a refused token apart from GitHub not answering', async () => {
+        await assert.rejects(check(GITHUB, undefined, answer(401).request), Refused);
+        await assert.rejects(
+            check(GITHUB, undefined, answer(200, {errors: [{type: 'INTERNAL'}]}).request),
             (reason) => !(reason instanceof Refused),
         );
     });

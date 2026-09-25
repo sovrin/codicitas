@@ -1,7 +1,7 @@
 import {definer} from '#/services/definition';
 import {isTicket} from '#/services/references';
 import {masked} from '#/utils';
-import {type Answer, type Module, Refused, type Settled} from './module';
+import {type Answer, type Check, type Module, Refused, type Settled} from './module';
 import {template} from './templates';
 
 /**
@@ -67,6 +67,42 @@ const authorization = ({email, token}: Jira): string =>
     email ? `Basic ${Buffer.from(`${email}:${token}`).toString('base64')}` : `Bearer ${token}`;
 
 /**
+ * Asks Jira's API, signed in. A sign in turned down throws Refused, whatever
+ * else went wrong an Error; a ticket that is not there is left to the caller.
+ *
+ * @param jira
+ * @param path like /rest/api/2/myself
+ * @param signal
+ * @param request
+ */
+const get = async (
+    jira: Jira,
+    path: string,
+    signal: AbortSignal | undefined,
+    request: typeof fetch,
+): Promise<Response> => {
+    const response = await request(`${jira.site}${path}`, {
+        headers: {
+            Accept: 'application/json',
+            Authorization: authorization(jira),
+        },
+        signal: signal
+            ? AbortSignal.any([signal, AbortSignal.timeout(TIMEOUT)])
+            : AbortSignal.timeout(TIMEOUT),
+    });
+
+    if (response.status === 401 || response.status === 403) {
+        throw new Refused(`Jira answered ${response.status}`);
+    }
+
+    if (!response.ok && response.status !== 404) {
+        throw new Error(`Jira answered ${response.status}`);
+    }
+
+    return response;
+};
+
+/**
  * Resolutions that say the work was not done but given up on, as Jira and
  * its usual workflows name them.
  */
@@ -125,29 +161,15 @@ export const lookup = async (
     signal?: AbortSignal,
     request: typeof fetch = fetch,
 ): Promise<Answer | null> => {
-    const response = await request(
-        `${jira.site}/rest/api/2/issue/${encodeURIComponent(key)}?fields=summary,status,resolution`,
-        {
-            headers: {
-                Accept: 'application/json',
-                Authorization: authorization(jira),
-            },
-            signal: signal
-                ? AbortSignal.any([signal, AbortSignal.timeout(TIMEOUT)])
-                : AbortSignal.timeout(TIMEOUT),
-        },
+    const response = await get(
+        jira,
+        `/rest/api/2/issue/${encodeURIComponent(key)}?fields=summary,status,resolution`,
+        signal,
+        request,
     );
-
-    if (response.status === 401 || response.status === 403) {
-        throw new Refused(`Jira answered ${response.status}`);
-    }
 
     if (response.status === 404) {
         return null;
-    }
-
-    if (!response.ok) {
-        throw new Error(`Jira answered ${response.status}`);
     }
 
     const {fields} = (await response.json()) as {fields?: Fields};
@@ -155,6 +177,34 @@ export const lookup = async (
     return typeof fields?.summary === 'string' && fields.summary.trim()
         ? {title: fields.summary.trim(), status: statusOf(fields)}
         : null;
+};
+
+/**
+ * Who the sign in belongs to: the account Jira says it is, on Cloud and on
+ * Server alike. A site that is not a Jira has no such thing to say.
+ *
+ * @param jira
+ * @param signal
+ * @param request fetch, or a stand-in for tests
+ */
+export const check = async (
+    jira: Jira,
+    signal?: AbortSignal,
+    request: typeof fetch = fetch,
+): Promise<Check> => {
+    const response = await get(jira, '/rest/api/2/myself', signal, request);
+    const found = response.ok
+        ? ((await response.json().catch(() => ({}))) as Record<string, unknown>)
+        : {};
+    const account = [found.displayName, found.name, found.emailAddress].find(
+        (name) => typeof name === 'string' && name.trim(),
+    );
+
+    if (typeof account !== 'string') {
+        throw new Error(`${jira.site} did not answer as Jira does`);
+    }
+
+    return {account: account.trim(), unseen: []};
 };
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -274,6 +324,7 @@ const jira: Module<JiraSettings> = {
             found && {
                 scope: found.site,
                 lookup: (key, signal) => lookup(found, key, signal),
+                check: (signal) => check(found, signal),
                 link: (key) => `${found.site}/browse/${key}`,
             }
         );

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
-import jira, {jiraOf, lookup, statusOf, toSite} from '#/modules/jira';
+import jira, {check, jiraOf, lookup, statusOf, toSite} from '#/modules/jira';
 import {Refused} from '#/modules/module';
 
 const CLOUD = {site: 'https://acme.atlassian.net', email: 'me@acme.io', token: 'secret'};
@@ -80,6 +80,37 @@ describe('lookup', () => {
         await assert.rejects(lookup(CLOUD, 'ACME-1', undefined, answer(403).request), Refused);
         await assert.rejects(
             lookup(CLOUD, 'ACME-1', undefined, answer(502).request),
+            (reason) => !(reason instanceof Refused),
+        );
+    });
+});
+
+describe('check', () => {
+    it('asks who the token belongs to, without a ticket', async () => {
+        const {calls, request} = answer(200, {displayName: ' Ada Lovelace ', name: 'ada'});
+
+        assert.deepEqual(await check(CLOUD, undefined, request), {
+            account: 'Ada Lovelace',
+            unseen: [],
+        });
+        assert.equal(calls[0].url, 'https://acme.atlassian.net/rest/api/2/myself');
+    });
+
+    it('falls back to the user name where there is no display name', async () => {
+        assert.equal(
+            (await check(CLOUD, undefined, answer(200, {name: 'ada'}).request)).account,
+            'ada',
+        );
+    });
+
+    it('tells a refused token apart from a site that is not a Jira', async () => {
+        await assert.rejects(check(CLOUD, undefined, answer(401).request), Refused);
+        await assert.rejects(
+            check(CLOUD, undefined, answer(404).request),
+            (reason) => !(reason instanceof Refused),
+        );
+        await assert.rejects(
+            check(CLOUD, undefined, answer(200, {}).request),
             (reason) => !(reason instanceof Refused),
         );
     });

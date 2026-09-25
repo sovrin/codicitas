@@ -884,10 +884,21 @@ describe('App', () => {
     describe('with Jira', () => {
         const original = globalThis.fetch;
         let asked: string[];
+        // who the token belongs to, asked while the modules are on screen
+        let checked: number;
 
         beforeEach(() => {
             asked = [];
+            checked = 0;
             globalThis.fetch = (async (url: string) => {
+                if (url.endsWith('/rest/api/2/myself')) {
+                    checked++;
+
+                    return new Response(JSON.stringify({displayName: 'Ada Lovelace'}), {
+                        status: 200,
+                    });
+                }
+
                 asked.push(url);
 
                 return url.includes('ACME-4217')
@@ -1064,11 +1075,10 @@ describe('App', () => {
             await settle();
             assert.match(plain(lastFrame()), /▌ Token\s+‹ ••••••••1234 ›/);
             assert.equal(store.loadSettings().jiraToken, 'ATATT3xFfGF0abcd1234');
-            // no ticket is on screen here, so nothing is asked yet
-            assert.match(
-                plain(lastFrame()),
-                /Set up; Jira is asked about tickets once they are on screen/,
-            );
+            // no ticket is on screen here, so only the sign in is checked
+            await until(() => plain(lastFrame()).includes('Signed in'));
+            assert.match(plain(lastFrame()), /Signed in to Jira as Ada Lovelace\./);
+            assert.equal(checked, 1);
             assert.deepEqual(asked, []);
 
             await type(stdin, '\u001b', '\u001b');
@@ -1079,7 +1089,49 @@ describe('App', () => {
             assert.match(plain(lastFrame()), /▌ Jira\s+‹ on ›\s+working/);
 
             await type(stdin, '\r');
-            assert.match(plain(lastFrame()), /Jira answered/);
+            assert.match(plain(lastFrame()), /Signed in to Jira as Ada Lovelace/);
+        });
+
+        it('checks the sign in on the modules page, and again on r', async () => {
+            store.saveSetting('jira', true);
+            store.saveSetting('jiraSite', 'acme.atlassian.net');
+            store.saveSetting('jiraToken', 'secret');
+
+            const {stdin, lastFrame} = render(<App today={TODAY} />);
+
+            // the journal alone does not check it
+            await settle();
+            assert.equal(checked, 0);
+
+            await type(stdin, ',', '\t');
+            await until(() => plain(lastFrame()).includes('working'));
+            assert.match(plain(lastFrame()), /▌ Jira\s+‹ on ›\s+working, as Ada Lovelace/);
+            assert.match(plain(lastFrame()), /r check/);
+            assert.equal(checked, 1);
+
+            await type(stdin, '\r', 'r');
+            await until(() => checked === 2);
+            assert.match(plain(lastFrame()), /Signed in to Jira as Ada Lovelace\./);
+            assert.deepEqual(asked, []);
+        });
+
+        it('says a token is turned down before any ticket is written', async () => {
+            store.saveSetting('jira', true);
+            store.saveSetting('jiraSite', 'acme.atlassian.net');
+            store.saveSetting('jiraToken', 'expired');
+            globalThis.fetch = (async () => new Response('', {status: 401})) as typeof fetch;
+
+            const {stdin, lastFrame} = render(<App today={TODAY} />);
+
+            await type(stdin, ',', '\t');
+            await until(() => plain(lastFrame()).includes('turned down'));
+            assert.match(plain(lastFrame()), /▌ Jira\s+‹ on ›\s+token turned down/);
+
+            await type(stdin, '\r');
+            assert.match(
+                plain(lastFrame()),
+                /Jira turned the token down\. Check the email and token\./,
+            );
         });
 
         it('replaces a token by pasting over it, and removes it saved empty', async () => {
@@ -1165,11 +1217,29 @@ describe('App', () => {
     describe('with GitHub', () => {
         const original = globalThis.fetch;
         let asked: unknown[];
+        let checked: number;
 
         beforeEach(() => {
             asked = [];
+            checked = 0;
             globalThis.fetch = (async (_url: string, init: RequestInit) => {
-                const {variables} = JSON.parse(init.body as string);
+                const {query, variables} = JSON.parse(init.body as string);
+
+                // who the token belongs to, and every repository as one it sees
+                if (query.includes('viewer')) {
+                    checked++;
+
+                    const seen = Object.keys(variables)
+                        .filter((name) => name.startsWith('o'))
+                        .map((name) => [`r${name.slice(1)}`, {id: name}]);
+
+                    return new Response(
+                        JSON.stringify({
+                            data: {viewer: {login: 'ada'}, ...Object.fromEntries(seen)},
+                        }),
+                        {status: 200},
+                    );
+                }
 
                 asked.push(variables);
 
@@ -1200,6 +1270,7 @@ describe('App', () => {
             const {stdin, lastFrame} = render(<App today={TODAY} />);
 
             await type(stdin, ',', '\t', 'j', '\r', 'j', '\r');
+            await until(() => plain(lastFrame()).includes('Signed in'));
 
             const frame = plain(lastFrame());
 
@@ -1211,8 +1282,36 @@ describe('App', () => {
                 frame,
                 /^    Type or paste the new one\. Saved empty, the old one is removed\.$/m,
             );
-            assert.match(frame, /^    Set up; GitHub is asked about pull requests/m);
+            assert.match(frame, /^    Signed in to GitHub as ada\.$/m);
+            // once for opening the modules, not again for opening GitHub's
+            assert.equal(checked, 1);
             assert.match(frame, /enter save\s+esc keep the old one/);
+        });
+
+        it('says which repositories the token cannot see', async () => {
+            store.saveSetting('github', true);
+            store.saveSetting('githubToken', 'secret');
+            store.saveSetting('githubRepositories', {api: 'acme/api', web: 'acme/web'});
+            globalThis.fetch = (async () =>
+                new Response(
+                    JSON.stringify({
+                        data: {viewer: {login: 'ada'}, r0: {id: '1'}, r1: null},
+                        errors: [{type: 'NOT_FOUND', path: ['r1']}],
+                    }),
+                    {status: 200},
+                )) as unknown as typeof fetch;
+
+            const {stdin, lastFrame} = render(<App today={TODAY} />);
+
+            await type(stdin, ',', '\t');
+            await until(() => plain(lastFrame()).includes('cannot see'));
+            assert.match(plain(lastFrame()), /▌ Jira\s+‹ off ›\n\s+GitHub\s+on\s+cannot see 1/);
+
+            await type(stdin, 'j', '\r');
+            assert.match(
+                plain(lastFrame()),
+                /Signed in to GitHub as ada, who cannot see acme\/web\./,
+            );
         });
 
         it('gives short names their repositories on a page of their own', async () => {

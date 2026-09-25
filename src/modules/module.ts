@@ -34,6 +34,21 @@ export type Badge = {
 };
 
 /**
+ * What a module found out about its sign in.
+ */
+export type Check = {
+    /**
+     * Who the sign in belongs to, as the service names them.
+     */
+    account: string;
+    /**
+     * What it was set up with that the sign in cannot see, like a repository
+     * the token has no access to.
+     */
+    unseen: string[];
+};
+
+/**
  * A module set up and ready to be asked.
  */
 export type Source = {
@@ -56,6 +71,11 @@ export type Source = {
      * @param key the reference, resolved
      */
     lookup: (key: string, signal?: AbortSignal) => Promise<Answer | null>;
+    /**
+     * Whether the sign in works, asked without a reference, so it can be told
+     * before anything is written. Throws as lookup does.
+     */
+    check: (signal?: AbortSignal) => Promise<Check>;
     /**
      * Where the reference can be opened.
      *
