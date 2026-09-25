@@ -1073,6 +1073,31 @@ describe('App', () => {
             assert.match(plain(lastFrame()), /Jira answered/);
         });
 
+        it('replaces a token by pasting over it, and removes it saved empty', async () => {
+            store.saveSetting('jira', true);
+            store.saveSetting('jiraSite', 'acme.atlassian.net');
+            store.saveSetting('jiraToken', 'ATATT3xFfGF0abcd1234');
+
+            const {stdin, lastFrame} = render(<App today={TODAY} />);
+
+            await type(stdin, ',', '\t', '\r', 'j', '\r');
+            // typed from empty: what is there cannot be seen, so not edited
+            assert.match(plain(lastFrame()), /Type or paste the new one/);
+            assert.match(plain(lastFrame()), /esc keep the old one/);
+
+            await type(stdin, '\u001b');
+            assert.match(plain(lastFrame()), /▌ Token\s+‹ ••••••••1234 ›/);
+            assert.equal(store.loadSettings().jiraToken, 'ATATT3xFfGF0abcd1234');
+
+            await type(stdin, '\r', 'ATATT3xFfGF0wxyz5678', '\r');
+            assert.match(plain(lastFrame()), /▌ Token\s+‹ ••••••••5678 ›/);
+            assert.equal(store.loadSettings().jiraToken, 'ATATT3xFfGF0wxyz5678');
+
+            await type(stdin, '\r', '\r');
+            assert.match(plain(lastFrame()), /▌ Token\s+‹ not set ›/);
+            assert.equal(store.loadSettings().jiraToken, '');
+        });
+
         it('asks about the tickets of open todos too, wherever they are', async () => {
             store.saveSetting('jira', true);
             store.saveSetting('jiraSite', 'acme.atlassian.net');

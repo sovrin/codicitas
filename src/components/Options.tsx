@@ -15,7 +15,16 @@ const NONE: string[] = [];
 
 const TYPING: [string, string][] = [
     ['enter', 'save'],
+    ['ctrl+u', 'delete to line start'],
     ['esc', 'cancel'],
+];
+
+/**
+ * A secret is typed from empty, so there is nothing to delete first.
+ */
+const REPLACING: [string, string][] = [
+    ['enter', 'save'],
+    ['esc', 'keep the old one'],
 ];
 
 /**
@@ -87,7 +96,7 @@ const Options = ({
     );
     // headings only where there is something to tell apart
     const split = groups.length > 1;
-    const {id, description, values, entries, fallback, preview} = listing[selected];
+    const {id, description, values, entries, fallback, preview, secret} = listing[selected];
     const width = Math.max(...listing.map(({label}) => label.length)) + 4;
 
     usePaste(
@@ -136,6 +145,10 @@ const Options = ({
                     }
                 } else if (values) {
                     adjust(id, key.leftArrow || input === 'h' ? -1 : 1);
+                } else if (secret) {
+                    // what is there cannot be seen, so there is nothing to edit
+                    // in it: a new one is pasted over, or nothing takes it away
+                    setTyping(draft());
                 } else {
                     // a template left empty is typed over from its default
                     setTyping(draft((settings[id] as string) || fallback || ''));
@@ -172,9 +185,13 @@ const Options = ({
     }
 
     return (
-        <Frame title={title} subtitle={subtitle} footer={<Hints hints={typing ? TYPING : hints} />}>
+        <Frame
+            title={title}
+            subtitle={subtitle}
+            footer={<Hints hints={typing ? (secret ? REPLACING : TYPING) : hints} />}
+        >
             <Box flexDirection="column">
-                {listing.map(({id: key, label, format, secret, missing}, at) => {
+                {listing.map(({id: key, label, format, missing}, at) => {
                     const isSelected = at === selected;
                     const value = format(settings[key] as never);
                     const isMissing = missing?.(settings[key] as never);
@@ -237,6 +254,12 @@ const Options = ({
                         <Text wrap="wrap">
                             <Text dimColor>{'  '}Looks like </Text>
                             {preview((typing ? typing.buffer : settings[id]) as never)}
+                        </Text>
+                    )}
+                    {secret && typing && Boolean(settings[id]) && (
+                        <Text dimColor wrap="wrap">
+                            {'  '}
+                            Type or paste the new one. Saved empty, the old one is removed.
                         </Text>
                     )}
                     {!values && !typing && (
