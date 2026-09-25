@@ -1013,6 +1013,15 @@ describe('App', () => {
             assert.deepEqual(asked, []);
         });
 
+        it('keeps a wrapped description under the line it wraps from', async () => {
+            const {stdin, lastFrame} = render(<App today={TODAY} />);
+
+            // colour-blind mode's description is the one too long for a line
+            await type(stdin, ',', ...Array(7).fill('j'));
+            assert.match(plain(lastFrame()), /▌ Colour-blind mode/);
+            assert.match(plain(lastFrame()), /^    rather than the colour of its underline\.$/m);
+        });
+
         it('is turned on and set up under modules, the token never shown', async () => {
             store.add(TODAY, {time: '09:00', tag: 'done', text: 'shipped ACME-4217'});
 
@@ -1179,6 +1188,31 @@ describe('App', () => {
 
         afterEach(() => {
             globalThis.fetch = original;
+        });
+
+        it('lists every setting on a short terminal, the description cut rather than drawn over', async () => {
+            store.saveSetting('github', true);
+            store.saveSetting('githubToken', 'secret');
+            store.saveSetting('githubRepositories', {api: 'acme/api'});
+
+            // the frame is as tall as the terminal: 24 rows here, too few for
+            // all of GitHub's settings and a description that wraps
+            const {stdin, lastFrame} = render(<App today={TODAY} />);
+
+            await type(stdin, ',', '\t', 'j', '\r', 'j', '\r');
+
+            const frame = plain(lastFrame());
+
+            for (const label of ['Repositories', 'Token', 'Titles', 'Checks', 'Look again']) {
+                assert.match(frame, new RegExp(`^  .\\s+${label}\\s`, 'm'), label);
+            }
+
+            assert.match(
+                frame,
+                /^    Type or paste the new one\. Saved empty, the old one is removed\.$/m,
+            );
+            assert.match(frame, /^    Set up; GitHub is asked about pull requests/m);
+            assert.match(frame, /enter save\s+esc keep the old one/);
         });
 
         it('gives short names their repositories on a page of their own', async () => {

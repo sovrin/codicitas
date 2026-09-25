@@ -175,13 +175,11 @@ const List = ({journal, preferences, selected, onSelect, onOpen}: ListProps) => 
                     );
                 })}
 
-                <Box marginTop={1} flexDirection="column">
+                <Box marginTop={1} paddingLeft={2} flexDirection="column">
                     <Text dimColor wrap="wrap">
-                        {'  '}
                         {module.description}
                     </Text>
                     <Text dimColor>
-                        {'  '}
                         {isOn ? 'Enter to set it up.' : 'Turn it on to set it up.'}
                     </Text>
                 </Box>

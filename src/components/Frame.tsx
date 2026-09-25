@@ -45,7 +45,10 @@ const Frame = ({title, subtitle, aside, subaside, status, footer, children}: Pro
                 <Text>{subaside}</Text>
             </Box>
 
-            <Box flexDirection="column" flexGrow={1} overflow="hidden" marginTop={1}>
+            {/* sized by what is left rather than by what it holds, so a body
+                taller than the terminal is cut off instead of squeezing the
+                header and the keys along with it */}
+            <Box flexDirection="column" flexGrow={1} flexBasis={0} overflow="hidden" marginTop={1}>
                 {children}
             </Box>
 

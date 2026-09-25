@@ -225,7 +225,7 @@ const Options = ({
                         );
 
                     return (
-                        <Box key={key} flexDirection="column">
+                        <Box key={key} flexDirection="column" flexShrink={0}>
                             {heading && (
                                 <Text bold>
                                     {at > 0 ? '\n' : ''}
@@ -245,34 +245,43 @@ const Options = ({
                     );
                 })}
 
-                <Box marginTop={1} flexDirection="column">
-                    <Text dimColor wrap="wrap">
-                        {'  '}
-                        {description}
-                    </Text>
-                    {preview && (
-                        <Text wrap="wrap">
-                            <Text dimColor>{'  '}Looks like </Text>
-                            {preview((typing ? typing.buffer : settings[id]) as never)}
+                {/* indented by the box rather than by spaces, so a line that wraps
+                    stays under the one before it; only the description gives way
+                    when the terminal is short, cut off rather than drawn over */}
+                <Box marginTop={1} paddingLeft={2} flexDirection="column">
+                    <Box flexShrink={1} overflow="hidden">
+                        <Text dimColor wrap="wrap">
+                            {description}
                         </Text>
+                    </Box>
+                    {preview && (
+                        <Box flexShrink={0}>
+                            <Text wrap="wrap">
+                                <Text dimColor>Looks like </Text>
+                                {preview((typing ? typing.buffer : settings[id]) as never)}
+                            </Text>
+                        </Box>
                     )}
                     {secret && typing && Boolean(settings[id]) && (
-                        <Text dimColor wrap="wrap">
-                            {'  '}
-                            Type or paste the new one. Saved empty, the old one is removed.
-                        </Text>
+                        <Box flexShrink={0}>
+                            <Text dimColor wrap="wrap">
+                                Type or paste the new one. Saved empty, the old one is removed.
+                            </Text>
+                        </Box>
                     )}
                     {!values && !typing && (
-                        <Text dimColor>
-                            {'  '}
-                            {entries ? 'Enter to change them.' : 'Enter to type it.'}
-                        </Text>
+                        <Box flexShrink={0}>
+                            <Text dimColor>
+                                {entries ? 'Enter to change them.' : 'Enter to type it.'}
+                            </Text>
+                        </Box>
                     )}
                     {status && (
-                        <Text color={status.color} wrap="wrap">
-                            {'  '}
-                            {status.text}
-                        </Text>
+                        <Box flexShrink={0}>
+                            <Text color={status.color} wrap="wrap">
+                                {status.text}
+                            </Text>
+                        </Box>
                     )}
                 </Box>
             </Box>

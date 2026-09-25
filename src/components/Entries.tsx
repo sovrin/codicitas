@@ -268,9 +268,8 @@ const Entries = ({title, label, kind, value, onChange, topics, onBack}: Props) =
                     );
                 })}
 
-                <Box marginTop={1} flexDirection="column">
+                <Box marginTop={1} paddingLeft={2} flexDirection="column">
                     <Text dimColor wrap="wrap">
-                        {'  '}
                         {step
                             ? kind.help[step.kind]
                             : row.kind === 'wanted'
@@ -281,7 +280,6 @@ const Entries = ({title, label, kind, value, onChange, topics, onBack}: Props) =
                     </Text>
                     {error && (
                         <Text color="red" wrap="wrap">
-                            {'  '}
                             {error}
                         </Text>
                     )}
