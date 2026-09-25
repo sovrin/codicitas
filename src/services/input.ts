@@ -34,6 +34,16 @@ export const line = (input: string): Chunk => {
 };
 
 /**
+ * The terminal's answer to Ink asking whether it speaks the kitty keyboard
+ * protocol, "[?0u" once Ink has taken the escape off. Ink reads it as a
+ * keypress as well as an answer, and the journal would take the "[" for
+ * going back a day - so a terminal that answers opened on yesterday.
+ *
+ * @param input
+ */
+export const isReply = (input: string): boolean => /^\[\?\d*u$/.test(input);
+
+/**
  * How many times a key occurs in one chunk. Holding a key down arrives as "jjj"
  * in a single callback rather than three.
  *

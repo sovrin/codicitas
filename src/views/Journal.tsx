@@ -13,7 +13,7 @@ import type {Module} from '#/modules/module';
 import type {ViewProps} from '#/components/App';
 import {candidates, complete, ghost, tokenAt} from '#/services/completion';
 import {draft, draft as empty, insert} from '#/services/editor';
-import {edit, isNewline, line, planning, repeats} from '#/services/input';
+import {edit, isNewline, isReply, line, planning, repeats} from '#/services/input';
 import {splitPrefixes} from '#/services/journal';
 import {firstPerson, firstReference, topicsIn} from '#/services/references';
 import {toClock, toHeadline} from '#/utils';
@@ -132,6 +132,10 @@ const Journal = ({journal, preferences}: ViewProps) => {
     });
 
     useInput((input, key) => {
+        if (isReply(input)) {
+            return;
+        }
+
         if (state.notice) {
             dispatch({type: 'notice'});
         }

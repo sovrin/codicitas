@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
-import {line, repeats} from '#/services/input';
+import {isReply, line, repeats} from '#/services/input';
 
 describe('line', () => {
     it('takes plain typing as it comes', () => {
@@ -43,5 +43,19 @@ describe('repeats', () => {
 
     it('counts nothing for an empty needle', () => {
         assert.equal(repeats('jjj', ''), 0);
+    });
+});
+
+describe('isReply', () => {
+    it("recognises the terminal's answer about the kitty protocol", () => {
+        // Ink hands it on as a keypress, and its "[" would open yesterday
+        assert.equal(isReply('[?0u'), true);
+        assert.equal(isReply('[?31u'), true);
+    });
+
+    it('lets the keys that look like it through', () => {
+        assert.equal(isReply('['), false);
+        assert.equal(isReply('[['), false);
+        assert.equal(isReply('u'), false);
     });
 });
