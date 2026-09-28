@@ -9,3 +9,10 @@ package-lock.json
 
 !/**/.gitkeep
 .DS_Store
+
+# Claude Code's guide and agents are part of the project; a global ignore
+# for them is overridden here, and anything else under .claude stays local
+!/CLAUDE.md
+!/.claude/
+/.claude/*
+!/.claude/agents/
