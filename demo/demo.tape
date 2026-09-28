@@ -2,13 +2,14 @@
 #
 #   npm run record
 #
-# writes demo/demo.gif and demo/screenshot.png. The journal is filled by seed.ts, Jira and GitHub are
+# writes demo/demo.gif and demo/screenshot.png: this records a video, which
+# render.sh makes the GIF from. The journal is filled by seed.ts, Jira and GitHub are
 # played by mock.mjs, and codi runs in tmux, whose status bar carries the
 # captions: each is set while recording is paused, so only the caption shows.
 # In a caption, a # is written ## and #[...] styles what follows, as tmux
 # reads it.
 
-Output demo/demo.gif
+Output "/tmp/demo.mp4"
 
 Require codi
 Require tmux
@@ -69,12 +70,23 @@ Sleep 3.5s
 
 Hide
 Ctrl+B
+Type@1ms ':set -g @caption "  #[bg=#89b4fa,fg=#1e1e2e,bold] `code` #[default]  in backticks, taken as written  ·  a ##topic in it is only text  "'
+Enter
+Sleep 150ms
+Show
+Sleep 1.5s
+Type "i" Sleep 600ms
+Type "/til `git log -S '#legacy'` finds when a line went in" Sleep 900ms Enter
+Sleep 3.5s
+
+Hide
+Ctrl+B
 Type@1ms `:set -g @caption "  #[bg=#89b4fa,fg=#1e1e2e,bold] h #[default]  the day before  ·  #[bg=#89b4fa,fg=#1e1e2e,bold] t #[default]  back to today  "`
 Enter
 Sleep 150ms
 Show
 Sleep 1.5s
-Type "h" Sleep 3.5s
+Type "h" Sleep 4.5s
 Type "t" Sleep 1.5s
 
 Hide

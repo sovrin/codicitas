@@ -10,6 +10,10 @@ console.log(offset === 0 ? "UTC" : `Etc/GMT${offset > 0 ? "-" : "+"}${Math.abs(o
 ')"
 export TZ
 
+# the terminal draws any colour, as most do, so code is drawn on the shade it
+# asks for rather than the closest of 256
+export COLORTERM=truecolor
+
 export CODICITAS_DIR=/tmp/journal
 rm -rf "$CODICITAS_DIR"
 (cd /codicitas && npx --no-install tsx demo/seed.ts)

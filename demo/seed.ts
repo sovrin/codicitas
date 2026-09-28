@@ -49,10 +49,15 @@ write(before, '14:20', '/til advisory locks in #postgres go with the session, no
 write(before, '16:40', '/done shipped shop#479');
 
 write(yesterday, '09:30', '/done spiked #payments retries, they need idempotency keys');
-write(yesterday, '11:15', '/blocked OPS-72 waiting on @jonas for the staging certificates');
+write(
+    yesterday,
+    '09:50',
+    '/til a retry is only safe with a key the server remembers:\n```\nIdempotency-Key: order-7f3a\n```',
+);
+write(yesterday, '10:20', '/blocked OPS-72 waiting on @jonas for the staging certificates');
 write(yesterday, '13:50', '/todo !c fix SHOP-311 before the release');
 write(yesterday, '15:30', '/note api#1498 closed for a smaller change');
-write(yesterday, '16:20', '/note SHOP-305 was SHOP-298 all along');
+write(yesterday, '16:40', '/note SHOP-305 was SHOP-298 all along');
 write(yesterday, '17:05', '/todo !l tidy the #payments dashboards');
 
 write(toKey(), ago(390), '/done idempotency keys are in shop#482');

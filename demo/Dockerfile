@@ -25,5 +25,5 @@ RUN if [ -f package-lock.json ]; then npm ci --ignore-scripts; else npm install 
 COPY . .
 RUN npm run build && chmod +x dist/codi.js && ln -s /codicitas/dist/codi.js /usr/local/bin/codi
 
-ENTRYPOINT ["vhs"]
-CMD ["demo/demo.tape"]
+# records the tape, and makes the GIF from it
+ENTRYPOINT ["sh", "demo/render.sh"]

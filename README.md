@@ -270,7 +270,7 @@ The demo and the screenshot at the top are recorded with [VHS](https://github.co
 npm run record   # writes demo/demo.gif and demo/screenshot.png
 ```
 
-It needs Docker running, and rebuilds the image when codicitas changed. The script is `demo/demo.tape`; the tape, seed and mocks are mounted into the container, so `docker compose run --rm demo` records again without a rebuild when only they changed.
+It needs Docker running, and rebuilds the image when codicitas changed. The script is `demo/demo.tape`, which records a video; `demo/render.sh` makes the GIF from it in two passes, so memory stays flat however long the demo runs. The tape, seed and mocks are mounted into the container, so `docker compose run --rm demo` records again without a rebuild when only they changed.
 
 </details>
 
