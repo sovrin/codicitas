@@ -55,7 +55,9 @@ services. `#/` is the alias for `src/`.
   `annotate` in `titles.ts` marks where the code is, so it is drawn as code across wrapped rows.
 - **The terminal is asked once, before the first frame.** `tui.ts` asks for its background colour
   (`services/tint.ts`) while stdin is raw and before Ink reads it, so no answer arrives as a key; any
-  new question to the terminal belongs there, with a reply every terminal gives after it.
+  new question to the terminal belongs there, with a reply every terminal gives after it. The answer
+  goes to `App` as a prop and reaches what draws through `TintContext`, never a module's own state,
+  so a screen test can give one.
 - **Keys and settings shown in the README** (`Keys` view, settings) must match the code.
 
 ## Style

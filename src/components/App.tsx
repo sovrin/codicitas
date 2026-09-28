@@ -1,5 +1,5 @@
 import React from 'react';
-import {ModulesContext, useJournal, useModules, useNow, useSettings} from '#/hooks';
+import {ModulesContext, TintContext, useJournal, useModules, useNow, useSettings} from '#/hooks';
 import type {Journal as State} from '#/hooks/useJournal';
 import type {Preferences} from '#/hooks/useSettings';
 import type {View} from '#/services/journal';
@@ -32,6 +32,10 @@ type Props = {
      * Pins today, for tests; otherwise it follows the clock.
      */
     today?: string;
+    /**
+     * What code is drawn on, from the terminal's answer; nothing without one.
+     */
+    tint?: string;
 };
 
 /**
@@ -39,9 +43,10 @@ type Props = {
  * mounted, so only its keyboard reader is listening.
  *
  * @param today
+ * @param tint
  * @constructor
  */
-const App = ({today}: Props) => {
+const App = ({today, tint}: Props) => {
     const now = useNow();
     const journal = useJournal(today ?? toKey(now));
     const preferences = useSettings();
@@ -54,7 +59,9 @@ const App = ({today}: Props) => {
 
     return (
         <ModulesContext.Provider value={modules}>
-            <Current journal={journal} preferences={preferences} />
+            <TintContext.Provider value={tint}>
+                <Current journal={journal} preferences={preferences} />
+            </TintContext.Provider>
         </ModulesContext.Provider>
     );
 };

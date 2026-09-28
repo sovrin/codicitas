@@ -20,8 +20,6 @@ const DARKER = 0.06;
 
 type Rgb = [number, number, number];
 
-let background: string | undefined;
-
 /**
  * The background colour in a terminal's answer, rgb:RRRR/GGGG/BBBB with one
  * to four hex digits a channel, each from 0 to 1.
@@ -100,17 +98,18 @@ export const nearest = (hex: string): number => {
 /**
  * Asks the terminal for its background, once, before anything is drawn and
  * with stdin in raw mode, so the answer is neither echoed nor read as keys.
- * Where it doesn't say, or has only its sixteen colours, code has no
- * background of its own; with 256, it gets the closest of them.
+ * Resolves to what code is drawn on: a shade just off that background, or
+ * the closest of the 256 colours to it; nothing where the terminal doesn't
+ * say, or has only its sixteen colours.
  *
  * @param level how many colours the terminal draws, as chalk counts: 2 for
  * 256, 3 for any
  */
-export const ask = async (level: number): Promise<void> => {
+export const ask = async (level: number): Promise<string | undefined> => {
     const {stdin, stdout} = process;
 
     if (level < 2 || !stdin.isTTY || !stdout.isTTY) {
-        return;
+        return undefined;
     }
 
     let answer = '';
@@ -137,13 +136,7 @@ export const ask = async (level: number): Promise<void> => {
     });
 
     const rgb = parse(answer);
-
     const shade = rgb ? tint(rgb) : undefined;
 
-    background = shade && level < 3 ? `ansi256(${nearest(shade)})` : shade;
+    return shade && level < 3 ? `ansi256(${nearest(shade)})` : shade;
 };
-
-/**
- * What code is drawn on, when the terminal said what its background is.
- */
-export const codeBackground = (): string | undefined => background;

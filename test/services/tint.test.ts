@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
-import {ask, codeBackground, nearest, parse, tint} from '#/services/tint';
+import {ask, nearest, parse, tint} from '#/services/tint';
 
 describe('parse', () => {
     it("reads the background from a terminal's answer, however many digits it gives", () => {
@@ -36,8 +36,6 @@ describe('nearest', () => {
 
 describe('ask', () => {
     it('asks nothing when output is not a terminal, and leaves code without a background', async () => {
-        await ask(3);
-
-        assert.equal(codeBackground(), undefined);
+        assert.equal(await ask(3), undefined);
     });
 });

@@ -6,6 +6,7 @@ export {default as useSearch} from './useSearch';
 export {default as useSettings} from './useSettings';
 export {default as useSize} from './useSize';
 export {default as useStandup} from './useStandup';
+export {TintContext, default as useTint} from './useTint';
 export {
     type Connection,
     default as useModules,

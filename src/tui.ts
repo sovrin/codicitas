@@ -23,9 +23,11 @@ export const start = async (): Promise<void> => {
 
     // what code is drawn on follows the terminal's background, so it has to
     // be known before the first frame
-    await tint.ask(chalk.level);
+    const background = await tint.ask(chalk.level);
 
-    const {waitUntilExit} = render(createElement(App), {kittyKeyboard: {mode: 'auto'}});
+    const {waitUntilExit} = render(createElement(App, {tint: background}), {
+        kittyKeyboard: {mode: 'auto'},
+    });
 
     try {
         await waitUntilExit();

@@ -74,6 +74,10 @@ const DIM = ['2', '22'];
 
 const STRUCK = ['9', '29'];
 
+const UNDERLINED = ['4', '24'];
+
+const CYAN = '36';
+
 /**
  * Whether a style is on where a text starts in a frame drawn with colours
  * on, by the codes that turn it on and off.
@@ -120,6 +124,25 @@ const type = async (stdin: {write: (data: string) => void}, ...keys: string[]) =
  */
 const resize = (columns?: number) => {
     Object.defineProperty(process.stdout, 'columns', {value: columns, configurable: true});
+};
+
+/**
+ * Runs a check with chalk drawing so many colours, as a terminal would, and
+ * back to what it was after.
+ *
+ * @param level
+ * @param check
+ */
+const withColours = async (level: typeof chalk.level, check: () => Promise<void>) => {
+    const before = chalk.level;
+
+    chalk.level = level;
+
+    try {
+        await check();
+    } finally {
+        chalk.level = before;
+    }
 };
 
 describe('App', () => {
@@ -879,6 +902,50 @@ describe('App', () => {
         } finally {
             chalk.level = level;
         }
+    });
+
+    describe('code', () => {
+        beforeEach(() => {
+            store.add(TODAY, {
+                time: '09:00',
+                tag: 'note',
+                text: 'run `git log @anna #12` for #auth',
+            });
+            store.add(TODAY, {
+                time: '09:10',
+                tag: 'note',
+                text: 'build it:\n```\nnpm run build\n```',
+            });
+        });
+
+        it('takes what is in backticks as written, in cyan, the rest still underlined', () =>
+            withColours(1, async () => {
+                const {lastFrame} = render(<App today={TODAY} />);
+                const frame = lastFrame();
+
+                assert.match(plain(frame), /run `git log @anna #12` for #auth/);
+                assert.equal(colourAt(frame, 'git log'), CYAN);
+                assert.equal(styleAt(frame, '@anna', UNDERLINED), false);
+                assert.equal(styleAt(frame, '#12', UNDERLINED), false);
+                assert.equal(styleAt(frame, '#auth', UNDERLINED), true);
+                // the backticks are faded, since the terminal gave no shade
+                assert.ok(frame.includes(`${ESCAPE}[2m\`${ESCAPE}[22m${ESCAPE}[36mgit log`));
+            }));
+
+        it('draws code on the shade it is given, its backticks as the room around it', () =>
+            withColours(3, async () => {
+                const {lastFrame} = render(<App today={TODAY} tint="#2f3133" />);
+                const frame = lastFrame();
+                const shaded = `${ESCAPE}[48;2;47;49;51m${ESCAPE}[36m`;
+
+                assert.match(plain(frame), /run {2}git log @anna #12 {2}for #auth/);
+                assert.ok(frame.includes(`${shaded} git log @anna #12 `));
+                // a block's code is shaded, and the lines of backticks around it stay
+                // backticks, faded
+                assert.match(plain(frame), /│ ```\n.*│ npm run build\n.*│ ```/);
+                assert.ok(frame.includes(`${shaded}npm run build`));
+                assert.ok(frame.includes(`${ESCAPE}[2m\`\`\``));
+            }));
     });
 
     describe('with Jira', () => {

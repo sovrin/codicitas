@@ -1,8 +1,7 @@
 import React, {useContext, useEffect} from 'react';
 import {Text} from 'ink';
-import {ModulesContext} from '#/hooks';
+import {ModulesContext, useTint} from '#/hooks';
 import {type Range, references} from '#/services/references';
-import {codeBackground} from '#/services/tint';
 import {hyperlink, underlined} from '#/utils';
 
 /**
@@ -58,7 +57,7 @@ const Refs = ({text, notes, bold}: Props) => {
         return found?.link ? hyperlink(found.link, shown) : shown;
     };
 
-    const background = codeBackground();
+    const background = useTint();
     // backticks with nothing but space beside them, like ``` around a block
     const alone = parts.every((part) => part.code === 'fence' || !part.text.trim());
 
