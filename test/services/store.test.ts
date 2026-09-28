@@ -346,7 +346,7 @@ describe('store', () => {
     it('records how far the schema has migrated', () => {
         const db = new DatabaseSync(path(), {readOnly: true});
 
-        assert.deepEqual({...db.prepare('PRAGMA user_version').get()}, {user_version: 12});
+        assert.deepEqual({...db.prepare('PRAGMA user_version').get()}, {user_version: 13});
         db.close();
     });
 
@@ -469,6 +469,31 @@ describe('store', () => {
 
             assert.deepEqual(loadSettings(), {githubBadges: expected}, setting);
         }
+
+        close();
+        process.env.CODICITAS_DIR = root;
+    });
+
+    it('forgets who was mentioned in code before it was code', () => {
+        close();
+
+        const old = join(root, 'code');
+
+        process.env.CODICITAS_DIR = old;
+        mkdirSync(old);
+
+        const db = new DatabaseSync(join(old, 'journal.db'));
+
+        db.exec(`CREATE TABLE entries (id INTEGER PRIMARY KEY, day TEXT NOT NULL, time TEXT NOT NULL, tag TEXT NOT NULL, text TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')), priority INTEGER, due TEXT);
+            CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            CREATE TABLE mentions (entry_id INTEGER NOT NULL, kind TEXT NOT NULL, name TEXT NOT NULL, PRIMARY KEY (entry_id, kind, name));
+            INSERT INTO entries (id, day, time, tag, text) VALUES (1, '2026-09-01', '09:00', 'note', 'mark it \`@Override\` with @carla');
+            INSERT INTO mentions (entry_id, kind, name) VALUES (1, 'person', '@Override'), (1, 'person', '@carla');
+            PRAGMA user_version = 12;`);
+        db.close();
+
+        assert.deepEqual(known('person'), ['@carla']);
 
         close();
         process.env.CODICITAS_DIR = root;

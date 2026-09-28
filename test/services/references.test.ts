@@ -15,6 +15,9 @@ const marked = (text: string) =>
         .filter(({isReference}) => isReference)
         .map((part) => part.text);
 
+const drawn = (text: string, notes: Parameters<typeof references>[1]) =>
+    references(text, notes).map((part) => [part.text, part.isReference, part.code ?? '']);
+
 describe('references', () => {
     it('finds topics, issue numbers and tickets', () => {
         assert.deepEqual(marked('#auth: review PR #412 for PROJ-123 and OPS2-7'), [
@@ -127,6 +130,47 @@ describe('notes', () => {
         assert.deepEqual(
             references('🚀 XY-1 (t)', [{start: 6, end: 10}]).map((part) => part.text),
             ['🚀 ', 'XY-1', ' (t)'],
+        );
+    });
+});
+
+describe('code', () => {
+    it('takes what is in backticks literally, and finds nothing in it', () => {
+        assert.deepEqual(marked('run `git log @anna #12` for #auth'), ['#auth']);
+        assert.deepEqual(marked('``a ` PROJ-1`` and PROJ-2'), ['PROJ-2']);
+    });
+
+    it('leaves a backtick without a partner as text', () => {
+        assert.deepEqual(marked('a ` before #auth'), ['#auth']);
+        assert.deepEqual(marked('``not closed` #auth'), ['#auth']);
+    });
+
+    it('runs over lines, so fences on lines of their own are a block', () => {
+        assert.deepEqual(marked('```\n#include <x>\n```\nthen #auth'), ['#auth']);
+    });
+
+    it('mentions no one in code, and names nothing in it to search for', () => {
+        assert.deepEqual(mentionsIn('`@anna PROJ-1` and @bo'), [{kind: 'person', name: '@bo'}]);
+        assert.equal(firstReference('`#x` then #auth'), '#auth');
+        assert.equal(firstPerson('`@Override` by @anna'), '@anna');
+        assert.deepEqual(topicsIn('`PROJ-1`', 'PROJ-2'), ['PROJ-2']);
+    });
+
+    it('draws code where it was marked, its backticks apart', () => {
+        assert.deepEqual(
+            drawn('see `#x` #y', [
+                {start: 4, end: 5, code: 'fence'},
+                {start: 5, end: 7, code: 'text'},
+                {start: 7, end: 8, code: 'fence'},
+            ]),
+            [
+                ['see ', false, ''],
+                ['`', false, 'fence'],
+                ['#x', false, 'text'],
+                ['`', false, 'fence'],
+                [' ', false, ''],
+                ['#y', true, ''],
+            ],
         );
     });
 });

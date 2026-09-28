@@ -106,6 +106,17 @@ const MIGRATIONS: (string | ((db: DatabaseSync) => void))[] = [
         WHERE key = 'githubBadges';`,
     // the day a todo is due by, YYYY-MM-DD; empty for every entry so far
     'ALTER TABLE entries ADD COLUMN due TEXT;',
+    // what is in backticks is code now, and mentions no one
+    (db) => {
+        for (const {id, text} of db
+            .prepare("SELECT id, text FROM entries WHERE text LIKE '%`%'")
+            .all() as {
+            id: number;
+            text: string;
+        }[]) {
+            index(db, id, text);
+        }
+    },
 ];
 
 /**

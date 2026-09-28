@@ -42,6 +42,39 @@ export const isNumbered = (name: string): boolean => new RegExp(`^${NUMBERED}$`)
  */
 const PERSON = /(?<![\w@])@[a-zA-Z](?:[\w.-]*\w)?/g;
 
+/**
+ * Code, the way Markdown writes it: between two runs of backticks of the same
+ * length, so ``a`b`` holds a backtick. It may run over lines, which makes
+ * ``` on lines of their own a block. A backtick without a partner is text.
+ */
+const CODE = /(?<!`)(`+)(?!`)([\s\S]*?[^`])\1(?!`)/g;
+
+/**
+ * Every stretch of code in a text, in order: the whole match, then its
+ * backticks and what is between them.
+ *
+ * @param text
+ */
+export const codeIn = (text: string): RegExpMatchArray[] => [...text.matchAll(CODE)];
+
+/**
+ * A text with its code blanked out, each character a space, so what is in it
+ * is taken literally and never as a reference, and everything else stays
+ * where it was.
+ *
+ * @param text
+ */
+const literal = (text: string): string => text.replace(CODE, (code) => ' '.repeat(code.length));
+
+/**
+ * Every topic in a text, tickets included, leaving out what is code.
+ *
+ * @param text
+ */
+export const topicMatches = (text: string): RegExpMatchArray[] => [
+    ...literal(text).matchAll(TOPIC),
+];
+
 export type Part = {
     text: string;
     isReference: boolean;
@@ -63,11 +96,18 @@ export type Part = {
      * Struck through, like the title of something dropped.
      */
     isStruck?: boolean;
+    /**
+     * Code as written, taken literally: its backticks, drawn faded, or what
+     * is between them.
+     */
+    code?: Code;
 };
 
+export type Code = 'fence' | 'text';
+
 /**
- * A stretch of a text, in code points, the way the editor counts. A note
- * carries the colour it is drawn in, when it has one.
+ * A stretch of a text, in code points, the way the editor counts: a note, or
+ * code. A note carries the colour it is drawn in, when it has one.
  */
 export type Range = {
     start: number;
@@ -75,6 +115,7 @@ export type Range = {
     color?: string;
     badge?: boolean;
     struck?: boolean;
+    code?: Code;
 };
 
 /**
@@ -82,12 +123,17 @@ export type Range = {
  *
  * @param text
  */
-const find = (text: string): RegExpMatchArray[] =>
-    [...text.matchAll(TOPIC), ...text.matchAll(PERSON)].toSorted((a, b) => a.index - b.index);
+const find = (text: string): RegExpMatchArray[] => {
+    const plain = literal(text);
+
+    return [...plain.matchAll(TOPIC), ...plain.matchAll(PERSON)].toSorted(
+        (a, b) => a.index - b.index,
+    );
+};
 
 /**
  * A line cut into references and the text around them, and around the notes
- * added to it, which are never searched for references of their own.
+ * added to it and its code, which are never searched for references.
  *
  * @param text
  * @param notes
@@ -98,7 +144,7 @@ export const references = (text: string, notes: Range[] = []): Part[] => {
         const parts: Part[] = [];
         let at = 0;
 
-        for (const {start, end, color, badge, struck} of notes.toSorted(
+        for (const {start, end, color, badge, struck, code} of notes.toSorted(
             (a, b) => a.start - b.start,
         )) {
             if (start > at) {
@@ -106,14 +152,20 @@ export const references = (text: string, notes: Range[] = []): Part[] => {
             }
 
             if (end > Math.max(at, start)) {
-                parts.push({
-                    text: list.slice(Math.max(at, start), end).join(''),
-                    isReference: false,
-                    isNote: true,
-                    ...(color ? {color} : {}),
-                    ...(badge ? {isBadge: true} : {}),
-                    ...(struck ? {isStruck: true} : {}),
-                });
+                const part = list.slice(Math.max(at, start), end).join('');
+
+                parts.push(
+                    code
+                        ? {text: part, isReference: false, code}
+                        : {
+                              text: part,
+                              isReference: false,
+                              isNote: true,
+                              ...(color ? {color} : {}),
+                              ...(badge ? {isBadge: true} : {}),
+                              ...(struck ? {isStruck: true} : {}),
+                          },
+                );
                 at = end;
             }
         }
@@ -155,18 +207,19 @@ export type Mention = {
 };
 
 /**
- * Every colleague and topic an entry mentions, each once.
+ * Every colleague and topic an entry mentions outside its code, each once.
  *
  * @param text
  */
 export const mentionsIn = (text: string): Mention[] => {
     const found = new Map<string, Mention>();
+    const plain = literal(text);
 
-    for (const [name] of text.matchAll(PERSON)) {
+    for (const [name] of plain.matchAll(PERSON)) {
         found.set(`person ${name}`, {kind: 'person', name});
     }
 
-    for (const [name] of text.matchAll(TOPIC)) {
+    for (const [name] of plain.matchAll(TOPIC)) {
         found.set(`topic ${name}`, {kind: 'topic', name});
     }
 
@@ -180,7 +233,7 @@ export const mentionsIn = (text: string): Mention[] => {
  * @param texts
  */
 export const topicsIn = (...texts: string[]): string[] => [
-    ...new Set(texts.flatMap((text) => [...text.matchAll(TOPIC)].map(([name]) => name))),
+    ...new Set(texts.flatMap((text) => topicMatches(text).map(([name]) => name))),
 ];
 
 /**
@@ -189,11 +242,11 @@ export const topicsIn = (...texts: string[]): string[] => [
  *
  * @param text
  */
-export const firstReference = (text: string): string | undefined => text.match(TOPIC)?.[0];
+export const firstReference = (text: string): string | undefined => topicMatches(text)[0]?.[0];
 
 /**
  * The first colleague an entry mentions, to search for everything with them.
  *
  * @param text
  */
-export const firstPerson = (text: string): string | undefined => text.match(PERSON)?.[0];
+export const firstPerson = (text: string): string | undefined => literal(text).match(PERSON)?.[0];

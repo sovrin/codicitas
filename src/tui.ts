@@ -1,7 +1,9 @@
 import {createElement} from 'react';
 import {render} from 'ink';
+import chalk from 'chalk';
 import {App} from '#/components';
 import * as screen from '#/services/screen';
+import * as tint from '#/services/tint';
 
 /**
  * Opens the journal and resolves once it is closed. Kept apart from the
@@ -18,6 +20,10 @@ export const start = async (): Promise<void> => {
     if (process.stdin.isTTY) {
         process.stdin.setRawMode(true);
     }
+
+    // what code is drawn on follows the terminal's background, so it has to
+    // be known before the first frame
+    await tint.ask(chalk.level);
 
     const {waitUntilExit} = render(createElement(App), {kittyKeyboard: {mode: 'auto'}});
 

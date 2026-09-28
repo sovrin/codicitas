@@ -1,5 +1,5 @@
 import type {Answer, Badge, Settled} from '#/modules/module';
-import {type Range, TOPIC} from './references';
+import {codeIn, type Range, topicMatches} from './references';
 import {around, render, TEMPLATES, type Templates} from './template';
 import {quote} from '#/utils';
 
@@ -63,7 +63,8 @@ const described = (rest: string): boolean => /^ ?[([]/.test(rest);
 export type Annotated = {
     text: string;
     /**
-     * Where the titles and badges were added, in code points.
+     * Where the titles and badges were added, and where the code is, in code
+     * points.
      */
     notes: Range[];
 };
@@ -74,22 +75,20 @@ export type Annotated = {
  * reference already followed by brackets was described by whoever wrote it,
  * and is left as they wrote it. In colour-blind mode a badge's mark goes with
  * every mention, since it says how things stand rather than what the
- * reference is: legacy#12 ✓[Fix login].
+ * reference is: legacy#12 ✓[Fix login]. Code is marked where it ends up, so it
+ * is drawn as code, and nothing in it gets a title.
  *
  * @param text
  * @param known reference to what is known about it, from every module
  */
 export const annotate = (text: string, known: ReadonlyMap<string, Known>): Annotated => {
-    if (known.size === 0) {
-        return {text, notes: []};
-    }
-
+    const code = codeIn(text);
     const seen = new Set<string>();
     const notes: Range[] = [];
     let result = '';
     let length = 0;
 
-    const add = (part: string, note?: {color?: string; badge?: boolean; struck?: boolean}) => {
+    const add = (part: string, note?: Omit<Range, 'start' | 'end'>) => {
         const size = Array.from(part).length;
 
         if (size === 0) {
@@ -104,9 +103,27 @@ export const annotate = (text: string, known: ReadonlyMap<string, Known>): Annot
         length += size;
     };
 
+    // what was written, from one reference to the next, its code with it;
+    // a reference is never in code, so code is always whole in here
+    const written = (from: number, to: number) => {
+        let at = from;
+
+        for (const {index, 0: whole, 1: fence, 2: inside} of code) {
+            if (index >= from && index < to) {
+                add(text.slice(at, index));
+                add(fence, {code: 'fence'});
+                add(inside, {code: 'text'});
+                add(fence, {code: 'fence'});
+                at = index + whole.length;
+            }
+        }
+
+        add(text.slice(at, to));
+    };
+
     let at = 0;
 
-    for (const match of text.matchAll(TOPIC)) {
+    for (const match of known.size > 0 ? topicMatches(text) : []) {
         const [key] = match;
         const end = match.index + key.length;
         const found = known.get(key);
@@ -139,7 +156,7 @@ export const annotate = (text: string, known: ReadonlyMap<string, Known>): Annot
             seen.add(key);
         }
 
-        add(text.slice(at, match.index));
+        written(at, match.index);
         add(titleBefore, title);
         add(markBefore, badge);
         add(key);
@@ -148,37 +165,45 @@ export const annotate = (text: string, known: ReadonlyMap<string, Known>): Annot
         at = end;
     }
 
-    return {text: result + text.slice(at), notes};
+    written(at, text.length);
+
+    return {text: result, notes};
 };
 
 /**
  * A text as it is copied, for whoever reads it without Jira or GitHub open:
  * each reference with its title at its first mention, as its module's copy
  * template has it - [ACME-4217](https://…) Download times out, say, for
- * Markdown.
+ * Markdown. Code is copied as it was written, backticks and all.
  *
  * @param text
  * @param known reference to what is known about it, from every module
  */
 export const copy = (text: string, known: ReadonlyMap<string, Known>): string => {
     const seen = new Set<string>();
+    let result = '';
+    let at = 0;
 
-    return text.replace(TOPIC, (key: string, at: number) => {
+    for (const {index, 0: key} of topicMatches(text)) {
+        const end = index + key.length;
         const found = known.get(key);
 
-        if (!found?.title || seen.has(key) || described(text.slice(at + key.length))) {
-            return key;
+        if (!found?.title || seen.has(key) || described(text.slice(end))) {
+            continue;
         }
 
         seen.add(key);
-
-        return render({...TEMPLATES, ...found.templates}.copy, {
+        result += text.slice(at, index);
+        result += render({...TEMPLATES, ...found.templates}.copy, {
             ref: key,
             title: quote(found.title, TITLE_LIMIT),
             link: found.link,
             mark: found.badge?.glyph,
         });
-    });
+        at = end;
+    }
+
+    return result + text.slice(at);
 };
 
 /**

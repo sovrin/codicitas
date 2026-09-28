@@ -1,5 +1,5 @@
 import type {Draft} from './editor';
-import type {Kind} from './references';
+import {codeIn, type Kind} from './references';
 
 export type Token = {
     kind: Kind;
@@ -16,10 +16,22 @@ export type Token = {
 const chars = (text: string): string[] => Array.from(text);
 
 /**
+ * Whether a text ends inside code: a run of backticks is open that nothing
+ * before it closes.
+ *
+ * @param text
+ */
+const inCode = (text: string): boolean => {
+    const last = codeIn(text).at(-1);
+
+    return text.slice(last ? last.index + last[0].length : 0).includes('`');
+};
+
+/**
  * The @name or #topic being typed: the cursor right behind it, nothing but
  * name characters since the sigil. A bare @ counts, so the people used most
  * are offered before a letter is typed; @ and a digit is a time on its way,
- * and never a name.
+ * and never a name. In code there are no names, only what is written.
  *
  * @param draft
  */
@@ -32,6 +44,10 @@ export const tokenAt = ({buffer, cursor}: Draft): Token | undefined => {
     }
 
     const before = list.slice(0, cursor).join('');
+
+    if (inCode(before)) {
+        return undefined;
+    }
     const match = /(?<![\w@#])([@#])([\w.-]*)$/.exec(before);
 
     if (!match) {

@@ -21,6 +21,12 @@ describe('tokenAt', () => {
         assert.equal(tokenAt(at('nothing here')), undefined);
     });
 
+    it('offers nothing in code, until it is closed', () => {
+        assert.equal(tokenAt(at('run `@Over')), undefined);
+        assert.equal(tokenAt(at('```\n#incl')), undefined);
+        assert.deepEqual(tokenAt(at('`x` with @an')), {kind: 'person', typed: '@an', start: 9});
+    });
+
     it('works with the cursor before the rest of the line', () => {
         assert.deepEqual(tokenAt(at('with @an on #auth', 8)), {
             kind: 'person',

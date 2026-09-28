@@ -69,6 +69,33 @@ describe('annotate', () => {
     it('counts in code points', () => {
         assert.deepEqual(annotate('🚀 ACME-4217', TITLES).notes, [{start: 11, end: 31}]);
     });
+
+    it('marks code, knowing nothing or something, where it ends up', () => {
+        assert.deepEqual(annotate('run ``a`b``', new Map()), {
+            text: 'run ``a`b``',
+            notes: [
+                {start: 4, end: 6, code: 'fence'},
+                {start: 6, end: 9, code: 'text'},
+                {start: 9, end: 11, code: 'fence'},
+            ],
+        });
+        assert.deepEqual(annotate('ACME-4217 in `ACME-4217`', TITLES), {
+            text: 'ACME-4217[Download times out] in `ACME-4217`',
+            notes: [
+                {start: 9, end: 29},
+                {start: 33, end: 34, code: 'fence'},
+                {start: 34, end: 43, code: 'text'},
+                {start: 43, end: 44, code: 'fence'},
+            ],
+        });
+    });
+
+    it('titles nothing in code', () => {
+        assert.equal(
+            annotate('`ACME-4217` then ACME-4217', TITLES).text,
+            '`ACME-4217` then ACME-4217[Download times out]',
+        );
+    });
 });
 
 describe('copy', () => {
@@ -95,6 +122,13 @@ describe('copy', () => {
         assert.equal(
             copy('review legacy#12', linked),
             'review [legacy#12](https://github.com/sovrin/sonotas/issues/12) Fix login ✗',
+        );
+    });
+
+    it('copies code as it was written', () => {
+        assert.equal(
+            copy('`ACME-4217` then ACME-4217', TITLES),
+            '`ACME-4217` then ACME-4217[Download times out]',
         );
     });
 

@@ -62,6 +62,8 @@ Press <kbd>i</kbd> and write where the day has got to. <kbd>enter</kbd> saves.
 
 The parts go at the start, in any order, each at most once; from the first word that is none of them on, the rest is text, so `ship >fri` stays as written. Entries are sorted by time, so one written down late still lands where it happened. Colour only appears where something needs you: yellow for open todos and now, red for what's blocking you, green for what's done. Critical todos show `!!`, high ones `!`, and low ones a grey circle.
 
+What's in backticks is code, taken as written and drawn in cyan, on a shade just off your terminal's background where it says what that is: `` `git log @anna` `` mentions no one. Two backticks on each side hold one inside, and a line of ` ``` ` before and after makes a block. The standup copies code with its backticks, so it's code in your team chat too.
+
 A todo with a due date says so in front of its text, counted from today: `due fri`, `due 9 Oct`, yellow on the day as `due today`, and red once it has passed, as `3d overdue`. A weekday is the coming one, next week's on the day itself, and a date without a year is the next one. Once the todo is done, its due date no longer shows.
 
 <details>
