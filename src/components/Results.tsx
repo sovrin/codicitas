@@ -141,7 +141,7 @@ const Results = ({
                                     <Refs
                                         key={index}
                                         text={part.text}
-                                        notes={clip(shown.notes, before, from)}
+                                        ranges={clip(shown.ranges, before, from)}
                                         bold={isSelected}
                                     />
                                 );

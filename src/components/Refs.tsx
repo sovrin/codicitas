@@ -8,7 +8,7 @@ import {hyperlink, underlined} from '#/utils';
  * What code is drawn in, the way an editor shows it. Red, yellow and green
  * say how things stand; this says nothing but code.
  */
-const CODE = 'cyan';
+const CODE_COLOUR = 'cyan';
 
 type Props = {
     text: string;
@@ -16,7 +16,7 @@ type Props = {
      * What was added for the reader, like a ticket's title, drawn faded, or a
      * badge, drawn in its colour; and where the code is.
      */
-    notes?: Range[];
+    ranges?: Range[];
     bold?: boolean;
 };
 
@@ -34,13 +34,13 @@ type Props = {
  * backticks are faded.
  *
  * @param text
- * @param notes
+ * @param ranges
  * @param bold
  * @constructor
  */
-const Refs = ({text, notes, bold}: Props) => {
+const Refs = ({text, ranges, bold}: Props) => {
     const {known, show} = useContext(ModulesContext);
-    const parts = references(text, notes);
+    const parts = references(text, ranges);
     // what this draws is on screen, so the modules may ask about it
     const drawn = parts
         .filter(({isReference}) => isReference)
@@ -68,7 +68,7 @@ const Refs = ({text, notes, bold}: Props) => {
 
                 if (part.code === 'text' || (part.code && background && !alone)) {
                     return (
-                        <Text key={at} color={CODE} backgroundColor={background} bold={bold}>
+                        <Text key={at} color={CODE_COLOUR} backgroundColor={background} bold={bold}>
                             {part.code === 'fence' ? ' '.repeat(part.text.length) : part.text}
                         </Text>
                     );

@@ -9,6 +9,7 @@
 # In a caption, a # is written ## and #[...] styles what follows, as tmux
 # reads it.
 
+# where render.sh reads the video from, to make demo/demo.gif
 Output "/tmp/demo.mp4"
 
 Require codi

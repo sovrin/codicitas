@@ -11,7 +11,7 @@ describe('annotate', () => {
     it('adds a title after each ticket it knows, saying where', () => {
         assert.deepEqual(annotate('shipped ACME-4217, then UTF-8', TITLES), {
             text: 'shipped ACME-4217[Download times out], then UTF-8',
-            notes: [{start: 17, end: 37}],
+            ranges: [{start: 17, end: 37}],
         });
     });
 
@@ -25,7 +25,7 @@ describe('annotate', () => {
     it('leaves a ticket its writer already described', () => {
         assert.deepEqual(annotate('ACME-4217 (the Safari one)', TITLES), {
             text: 'ACME-4217 (the Safari one)',
-            notes: [],
+            ranges: [],
         });
         assert.equal(
             annotate('ACME-4217[the Safari one]', TITLES).text,
@@ -57,23 +57,23 @@ describe('annotate', () => {
 
         assert.deepEqual(annotate('shipped ACME-4217', spaced), {
             text: 'shipped ACME-4217 (Download times out)',
-            notes: [{start: 17, end: 38}],
+            ranges: [{start: 17, end: 38}],
         });
         // what comes before the reference is added before it
         assert.deepEqual(annotate('shipped ACME-4217', before), {
             text: 'shipped Download times out: ACME-4217',
-            notes: [{start: 8, end: 28}],
+            ranges: [{start: 8, end: 28}],
         });
     });
 
     it('counts in code points', () => {
-        assert.deepEqual(annotate('🚀 ACME-4217', TITLES).notes, [{start: 11, end: 31}]);
+        assert.deepEqual(annotate('🚀 ACME-4217', TITLES).ranges, [{start: 11, end: 31}]);
     });
 
     it('marks code, knowing nothing or something, where it ends up', () => {
         assert.deepEqual(annotate('run ``a`b``', new Map()), {
             text: 'run ``a`b``',
-            notes: [
+            ranges: [
                 {start: 4, end: 6, code: 'fence'},
                 {start: 6, end: 9, code: 'text'},
                 {start: 9, end: 11, code: 'fence'},
@@ -81,7 +81,7 @@ describe('annotate', () => {
         });
         assert.deepEqual(annotate('ACME-4217 in `ACME-4217`', TITLES), {
             text: 'ACME-4217[Download times out] in `ACME-4217`',
-            notes: [
+            ranges: [
                 {start: 9, end: 29},
                 {start: 33, end: 34, code: 'fence'},
                 {start: 34, end: 43, code: 'text'},
@@ -139,17 +139,17 @@ describe('copy', () => {
 
 describe('clip', () => {
     it('keeps the notes within a part, counted from its start', () => {
-        const notes = [
+        const ranges = [
             {start: 5, end: 15},
             {start: 20, end: 25},
         ];
 
-        assert.deepEqual(clip(notes, 10, 22), [
+        assert.deepEqual(clip(ranges, 10, 22), [
             {start: 0, end: 5},
             {start: 10, end: 12},
         ]);
-        assert.deepEqual(clip(notes, 15, 20), []);
-        assert.deepEqual(clip(notes, 3), [
+        assert.deepEqual(clip(ranges, 15, 20), []);
+        assert.deepEqual(clip(ranges, 3), [
             {start: 2, end: 12},
             {start: 17, end: 22},
         ]);
@@ -164,7 +164,7 @@ describe('annotate with badges', () => {
     it('puts a mark after every mention, and the title after the first', () => {
         assert.deepEqual(annotate('legacy#12 and again legacy#12', KNOWN), {
             text: 'legacy#12 ✓[Fix login] and again legacy#12 ✓',
-            notes: [
+            ranges: [
                 {start: 9, end: 11, badge: true, color: 'green'},
                 {start: 11, end: 22},
                 {start: 42, end: 44, badge: true, color: 'green'},
@@ -190,7 +190,7 @@ describe('annotate with badges', () => {
 
         assert.deepEqual(annotate('legacy#12', before), {
             text: '✓ legacy#12',
-            notes: [{start: 0, end: 2, badge: true}],
+            ranges: [{start: 0, end: 2, badge: true}],
         });
     });
 
@@ -198,8 +198,10 @@ describe('annotate with badges', () => {
         const dropped = new Map([['legacy#12', {title: 'Fix login', settled: 'dropped' as const}]]);
         const done = new Map([['legacy#12', {title: 'Fix login', settled: 'done' as const}]]);
 
-        assert.deepEqual(annotate('legacy#12', dropped).notes, [{start: 9, end: 20, struck: true}]);
-        assert.deepEqual(annotate('legacy#12', done).notes, [{start: 9, end: 20}]);
+        assert.deepEqual(annotate('legacy#12', dropped).ranges, [
+            {start: 9, end: 20, struck: true},
+        ]);
+        assert.deepEqual(annotate('legacy#12', done).ranges, [{start: 9, end: 20}]);
     });
 
     it('adds no title for a reference known without one', () => {
@@ -207,7 +209,7 @@ describe('annotate with badges', () => {
 
         assert.deepEqual(annotate('legacy#12', bare), {
             text: 'legacy#12 ✓',
-            notes: [{start: 9, end: 11, badge: true}],
+            ranges: [{start: 9, end: 11, badge: true}],
         });
     });
 

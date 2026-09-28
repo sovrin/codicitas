@@ -88,8 +88,8 @@ const Standup = ({journal, preferences}: ViewProps) => {
                               {row === 0 && <Lead mark={mark} due={due} priority={priority} />}
                               <Refs
                                   text={row === 0 ? segment.text.slice(lead) : segment.text}
-                                  notes={clip(
-                                      annotated.notes,
+                                  ranges={clip(
+                                      annotated.ranges,
                                       segment.start + (row === 0 ? lead : 0),
                                       segment.end,
                                   )}

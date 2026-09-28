@@ -30,9 +30,10 @@ export type Row =
            */
           due?: Due;
           /**
-           * Where the row shows a reference's title, counted from the row's start.
+           * Where the row shows a reference's title, or code, counted from the
+           * row's start.
            */
-          notes: Range[];
+          ranges: Range[];
       }
     | {
           kind: 'draft';
@@ -149,7 +150,7 @@ export const layout = ({
         } else {
             const mark = markOf(entry);
             const due = dueOf(entry, today);
-            const {text, notes} = annotate(mark + leadOf(due) + entry.text, titles);
+            const {text, ranges} = annotate(mark + leadOf(due) + entry.text, titles);
 
             rows.push(
                 ...wrap(text, width).map((segment, at): Row => ({
@@ -161,7 +162,7 @@ export const layout = ({
                     isFirst: at === 0,
                     mark: at === 0 ? mark : '',
                     ...(at === 0 && due ? {due} : {}),
-                    notes: clip(notes, segment.start, segment.end),
+                    ranges: clip(ranges, segment.start, segment.end),
                     ...(entry.priority ? {priority: entry.priority} : {}),
                 })),
             );

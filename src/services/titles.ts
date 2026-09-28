@@ -66,7 +66,7 @@ export type Annotated = {
      * Where the titles and badges were added, and where the code is, in code
      * points.
      */
-    notes: Range[];
+    ranges: Range[];
 };
 
 /**
@@ -84,7 +84,7 @@ export type Annotated = {
 export const annotate = (text: string, known: ReadonlyMap<string, Known>): Annotated => {
     const code = codeIn(text);
     const seen = new Set<string>();
-    const notes: Range[] = [];
+    const ranges: Range[] = [];
     let result = '';
     let length = 0;
 
@@ -96,7 +96,7 @@ export const annotate = (text: string, known: ReadonlyMap<string, Known>): Annot
         }
 
         if (note) {
-            notes.push({start: length, end: length + size, ...note});
+            ranges.push({start: length, end: length + size, ...note});
         }
 
         result += part;
@@ -167,7 +167,7 @@ export const annotate = (text: string, known: ReadonlyMap<string, Known>): Annot
 
     written(at, text.length);
 
-    return {text: result, notes};
+    return {text: result, ranges};
 };
 
 /**
@@ -207,15 +207,15 @@ export const copy = (text: string, known: ReadonlyMap<string, Known>): string =>
 };
 
 /**
- * The notes that fall within part of a text, counted from where that part
+ * The ranges that fall within part of a text, counted from where that part
  * starts - for a wrapped row, or a text with its first characters drawn apart.
  *
- * @param notes
+ * @param ranges
  * @param start
  * @param end
  */
-export const clip = (notes: Range[], start: number, end = Infinity): Range[] =>
-    notes
+export const clip = (ranges: Range[], start: number, end = Infinity): Range[] =>
+    ranges
         .filter((note) => note.end > start && note.start < end)
         .map((note) => ({
             ...note,

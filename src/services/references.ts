@@ -103,7 +103,7 @@ export type Part = {
     code?: Code;
 };
 
-export type Code = 'fence' | 'text';
+type Code = 'fence' | 'text';
 
 /**
  * A stretch of a text, in code points, the way the editor counts: a note, or
@@ -132,19 +132,20 @@ const find = (text: string): RegExpMatchArray[] => {
 };
 
 /**
- * A line cut into references and the text around them, and around the notes
- * added to it and its code, which are never searched for references.
+ * A line cut into references and the text around them, and around the
+ * ranges marked in it - the notes added to it and its code - which are never
+ * searched for references.
  *
  * @param text
- * @param notes
+ * @param ranges
  */
-export const references = (text: string, notes: Range[] = []): Part[] => {
-    if (notes.length > 0) {
+export const references = (text: string, ranges: Range[] = []): Part[] => {
+    if (ranges.length > 0) {
         const list = Array.from(text);
         const parts: Part[] = [];
         let at = 0;
 
-        for (const {start, end, color, badge, struck, code} of notes.toSorted(
+        for (const {start, end, color, badge, struck, code} of ranges.toSorted(
             (a, b) => a.start - b.start,
         )) {
             if (start > at) {

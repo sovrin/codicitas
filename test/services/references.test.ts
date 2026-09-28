@@ -15,8 +15,8 @@ const marked = (text: string) =>
         .filter(({isReference}) => isReference)
         .map((part) => part.text);
 
-const drawn = (text: string, notes: Parameters<typeof references>[1]) =>
-    references(text, notes).map((part) => [part.text, part.isReference, part.code ?? '']);
+const drawn = (text: string, ranges: Parameters<typeof references>[1]) =>
+    references(text, ranges).map((part) => [part.text, part.isReference, part.code ?? '']);
 
 describe('references', () => {
     it('finds topics, issue numbers and tickets', () => {

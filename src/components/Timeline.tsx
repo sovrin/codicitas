@@ -152,7 +152,7 @@ const Timeline = ({
                                     {row.text.slice(lead) ? (
                                         <Refs
                                             text={row.text.slice(lead)}
-                                            notes={clip(row.notes, lead)}
+                                            ranges={clip(row.ranges, lead)}
                                         />
                                     ) : (
                                         ' '
